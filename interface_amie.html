@@ -229,10 +229,12 @@
                 saveBtn.innerText = "Enregistrer les modifications 💾";
             }
         });
-        <!-- IMPORT FIREBASE -->    <script type="module">        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    </script>
+    <!-- IMPORT CONFIG -->
+    <script src="secrets.js"></script>
+     <!-- IMPORT FIREBASE -->    <script type="module">        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         const app = initializeApp(firebaseConfig);        const db = getDatabase(app, databaseURL);
         const MOT_DE_PASSE_SECRET = "bebe2026"; 
         window.checkPassword = function() {            const saisie = document.getElementById('passwordInput').value;            if (saisie === MOT_DE_PASSE_SECRET) {                document.getElementById('loginScreen').classList.add('hidden');                document.getElementById('adminInterface').classList.remove('hidden');            } else {                document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";            }
-    </script>
 </body>
 </html>
