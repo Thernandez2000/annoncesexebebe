@@ -32,6 +32,17 @@
             margin-bottom: 20px;
             font-size: 1.4rem;
         }
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            text-align: center;
+            box-sizing: border-box;
+        }
 
         .form-group {
             margin-bottom: 15px;
@@ -102,7 +113,15 @@
     </style>
 </head>
 <body>
-
+        <!-- ÉCRAN DE CONNEXION -->
+    <div id="loginScreen" class="container">
+        <h2>🔒 Espace Réservé</h2>
+        <p>Entre le mot de passe secret :</p>
+        <input type="password" id="passwordInput" placeholder="Mot de passe">
+        <br>
+        <button onclick="checkPassword()">Se connecter</button>
+        <p id="errorMsg" style="color: red; font-size: 0.9rem; margin-top: 10px;"></p>
+    </div>    
     <div class="admin-container">
         <h2>Configuration de l'Annonce</h2>
         
@@ -210,6 +229,10 @@
                 saveBtn.innerText = "Enregistrer les modifications 💾";
             }
         });
+        <!-- IMPORT FIREBASE -->    <script type="module">        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        const app = initializeApp(firebaseConfig);        const db = getDatabase(app, databaseURL);
+        const MOT_DE_PASSE_SECRET = "bebe2026"; 
+        window.checkPassword = function() {            const saisie = document.getElementById('passwordInput').value;            if (saisie === MOT_DE_PASSE_SECRET) {                document.getElementById('loginScreen').classList.add('hidden');                document.getElementById('adminInterface').classList.remove('hidden');            } else {                document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";            }
     </script>
 </body>
 </html>
