@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espace Secret - Choix du Sexe</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f0ea, #e8dfd8);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #5a4a42;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #d1a878;
+        }
+
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #d1a878;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 5px 0;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #bc9363;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .btn-fille {
+            background-color: #ffb6c1;
+            color: #5a4a42;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 8px 0;
+            padding: 15px;
+        }
+        .btn-fille:hover { background-color: #ff9eaa; }
+
+        .btn-garcon {
+            background-color: #add8e6;
+            color: #5a4a42;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 8px 0;
+            padding: 15px;
+        }
+        .btn-garcon:hover { background-color: #92cce0; }
+
+        /* INDICATEUR DE STATUT EN DIRECT */
+        .status-badge {
+            background-color: #f7f3ee;
+            border: 1px dashed #d1a878;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            color: #5a4a42;
+        }
+
+        /* ANIMATION DE VALIDATION */
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        #status.show {
+            opacity: 1;
+        }
+
+        .input-group {
+            text-align: left;
+            margin-top: 15px;
+        }
+        .input-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #7a685e;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ÉCRAN DE CONNEXION -->
+    <div id="loginScreen" class="container">
+        <h2>🔒 Espace Réservé</h2>
+        <p>Entre le mot de passe secret :</p>
+        <input type="password" id="passwordInput" placeholder="Mot de passe">
+        <br>
+        <button onclick="checkPassword()">Se connecter</button>
+        <p id="errorMsg" style="color: red; font-size: 0.9rem; margin-top: 10px;"></p>
+    </div>
+
+    <!-- INTERFACE DE SÉLECTION -->
+    <div id="adminInterface" class="container hidden">
+        <h2>Choisis le secret 🤫</h2>
+        
+        <!-- Badge indicateur en direct -->
+        <div class="status-badge" id="liveStatusBadge">
+            Chargement du statut actuel...
+        </div>
+
+        <p style="font-size: 0.9rem; margin-bottom: 10px;">Sélectionne le résultat :</p>
+        
+        <button class="btn-fille" onclick="setChoice('fille')">Une petite fille ! 💖</button>
+        <button class="btn-garcon" onclick="setChoice('garcon')">Un petit garçon ! 💙</button>
+        
+        <!-- Petit mot doux personnalisable -->
+        <div class="input-group">
+            <label for="motDouxInput">Petit mot doux (optionnel) :</label>
+            <input type="text" id="motDouxInput" placeholder="ex: Prévu pour Décembre 2026">
+            <button onclick="saveMotDoux()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem;">Enregistrer le mot doux ✨</button>
+        </div>
+
+        <p id="status"></p>
+        <br>
+        <a href="index.html" style="font-size: 0.9rem; color: #888; text-decoration: none;">← Retourner à la carte</a>
+    </div>
+
+    <!-- IMPORT CONFIG -->
+    <script src="secrets.js"></script>
+
+    <!-- IMPORT FIREBASE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app, databaseURL);
+
+        const MOT_DE_PASSE_SECRET = "bebe2026"; 
+
+        window.checkPassword = function() {
+            const saisie = document.getElementById('passwordInput').value;
+            if (saisie === MOT_DE_PASSE_SECRET) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('adminInterface').classList.remove('hidden');
+                loadLiveStatus();
+            } else {
+                document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";
+            }
+        };
+
+        function loadLiveStatus() {
+            const annonceRef = ref(db, 'annonce');
+            onValue(annonceRef, (snapshot) => {
+                const data = snapshot.val();
+                const badge = document.getElementById('liveStatusBadge');
+                if (data && data.ligneSexe) {
+                    badge.innerHTML = `📌 <b>Actuellement affiché :</b> ${data.ligneSexe}`;
+                    if (data.ligneMotDoux) {
+                        document.getElementById('motDouxInput').value = data.ligneMotDoux;
+                    }
+                } else {
+                    badge.innerHTML = `📌 <b>Statut :</b> Non configuré`;
+                }
+            }, { onlyOnce: true });
+        }
+
+        function showNotification(message, isError = false) {
+            const statusEl = document.getElementById('status');
+            statusEl.style.color = isError ? "red" : "green";
+            statusEl.innerText = message;
+            statusEl.classList.add('show');
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        window.setChoice = function(sexe) {
+            const annonceRef = ref(db, 'annonce');
+            
+            let dataToSend = {};
+            if (sexe === 'fille') {
+                dataToSend = {
+                    ligneBebe: "BÉBÉ EST...",
+                    ligneCoeur: "— ♡ —",
+                    ligneSexe: "Une petite fille !",
+                    confettiColors: ['#ffc0cb', '#ff69b4', '#ffffff']
+                };
+            } else {
+                dataToSend = {
+                    ligneBebe: "BÉBÉ EST...",
+                    ligneCoeur: "— ♡ —",
+                    ligneSexe: "Un petit garçon !",
+                    confettiColors: ['#add8e6', '#87ceeb', '#ffffff']
+                };
+            }
+
+            // On garde le mot doux s'il était déjà présent
+            const currentMotDoux = document.getElementById('motDouxInput').value;
+            if (currentMotDoux) dataToSend.ligneMotDoux = currentMotDoux;
+
+            set(annonceRef, dataToSend).then(() => {
+                showNotification("Choix enregistré avec succès ! ✨");
+                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+                loadLiveStatus();
+            }).catch((error) => {
+                showNotification("Erreur lors de l'enregistrement.", true);
+            });
+        }
+
+        window.saveMotDoux = function() {
+            const motDoux = document.getElementById('motDouxInput').value;
+            const annonceRef = ref(db, 'annonce');
+            
+            update(annonceRef, { ligneMotDoux: motDoux }).then(() => {
+                showNotification("Mot doux mis à jour ! 💌");
+                loadLiveStatus();
+            }).catch((error) => {
+                showNotification("Erreur lors de la mise à jour.", true);
+            });
+        }
+    </script>
+</body>
+</html>
