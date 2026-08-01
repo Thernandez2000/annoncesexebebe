@@ -3,238 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interface Amie - Administration</title>
+    <title>Espace Secret - Choix du Sexe</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f0ea;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f0ea, #e8dfd8);
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
+            color: #5a4a42;
         }
 
-        .admin-container {
-            background: #ffffff;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
             width: 100%;
-            max-width: 450px;
-            box-sizing: border-box;
         }
 
         h2 {
-            color: #5a4a42;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.4rem;
+            margin-top: 0;
+            color: #d1a878;
         }
-        input[type="password"], input[type="text"] {
-            width: 100%;
+
+        input[type="password"] {
+            width: 80%;
             padding: 12px;
-            margin: 10px 0;
+            margin: 15px 0;
             border: 2px solid #ddd;
             border-radius: 10px;
             font-size: 1rem;
             outline: none;
             text-align: center;
-            box-sizing: border-box;
         }
 
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #5a4a42;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        input[type="text"],
-        input[type="number"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #d1a878;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 0.95rem;
-            background-color: #faf8f5;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: #bc9363;
-            background-color: #fff;
-        }
-
-        .btn-save {
-            width: 100%;
+        button {
             background-color: #d1a878;
             color: white;
             border: none;
-            padding: 12px;
-            border-radius: 6px;
+            padding: 12px 25px;
             font-size: 1rem;
+            border-radius: 10px;
             cursor: pointer;
-            font-weight: bold;
             transition: background 0.3s;
-            margin-top: 10px;
+            margin: 5px;
         }
 
-        .btn-save:hover {
+        button:hover {
             background-color: #bc9363;
         }
 
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            color: #8c7355;
-            text-decoration: none;
-            font-size: 0.85rem;
+        .hidden {
+            display: none;
         }
 
-        .back-link:hover {
-            text-decoration: underline;
+        .btn-fille {
+            background-color: #ffb6c1;
+            color: #5a4a42;
+            font-weight: bold;
+            font-size: 1.1rem;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
         }
+        .btn-fille:hover { background-color: #ff9eaa; }
 
-        #statusMessage {
+        .btn-garcon {
+            background-color: #add8e6;
+            color: #5a4a42;
+            font-weight: bold;
+            font-size: 1.1rem;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+        }
+        .btn-garcon:hover { background-color: #92cce0; }
+
+        #status {
             margin-top: 15px;
-            text-align: center;
-            font-size: 0.85rem;
             font-weight: bold;
         }
     </style>
 </head>
 <body>
-        <!-- ÉCRAN DE CONNEXION -->
+
+    <!-- ÉCRAN DE CONNEXION -->
     <div id="loginScreen" class="container">
         <h2>🔒 Espace Réservé</h2>
         <p>Entre le mot de passe secret :</p>
         <input type="password" id="passwordInput" placeholder="Mot de passe">
         <br>
         <button onclick="checkPassword()">Se connecter</button>
-        <p id="errorMsg" style="color: red; font-size: 0.9rem; margin-top: 10px;"></p>
-    </div>    
-    <div class="admin-container">
-        <h2>Configuration de l'Annonce</h2>
-        
-        <div class="form-group">
-            <label for="ligneBebeInput">Ligne du haut (ex: BÉBÉ EST...) :</label>
-            <input type="text" id="ligneBebeInput" placeholder="BÉBÉ EST...">
-        </div>
-
-        <div class="form-group">
-            <label for="ligneCoeurInput">Ligne du cœur (ex: — ♡ —) :</label>
-            <input type="text" id="ligneCoeurInput" placeholder="— ♡ —">
-        </div>
-
-        <div class="form-group">
-            <label for="ligneSexeInput">Ligne principale (ex: UN PETITE FILLE) :</label>
-            <input type="text" id="ligneSexeInput" placeholder="...">
-        </div>
-
-        <div class="form-group">
-            <label for="ligneMotDouxInput">Mot doux optionnel :</label>
-            <input type="text" id="ligneMotDouxInput" placeholder="Ex: On t'aime fort">
-        </div>
-
-        <div class="form-group">
-            <label for="countdownInput">Durée du compte à rebours (en secondes) :</label>
-            <input type="number" id="countdownInput" min="0" max="10" value="3">
-        </div>
-
-        <button class="btn-save" id="saveBtn">Enregistrer les modifications 💾</button>
-        <div id="statusMessage"></div>
-
-        <a href="index.html" class="back-link">← Retour à la carte</a>
+        <p id="errorMsg" style="color: red; font-size: 0.9rem;"></p>
     </div>
 
-    <!-- Fichier de configuration Firebase (contient firebaseConfig et databaseURL) -->
+    <!-- INTERFACE DE SÉLECTION (Cachée par défaut) -->
+    <div id="adminInterface" class="container hidden">
+        <h2>Choisis le secret 🤫</h2>
+        <p>Sélectionne le résultat qui sera affiché sur la carte :</p>
+        
+        <button class="btn-fille" onclick="setChoice('fille')">C'est une Fille ! 💖</button>
+        <button class="btn-garcon" onclick="setChoice('garcon')">C'est un Garçon ! 💙</button>
+        
+        <p id="status"></p>
+        <br>
+        <a href="index.html" style="font-size: 0.9rem; color: #888; text-decoration: none;">← Retourner à la carte</a>
+    </div>
+
+    <!-- IMPORT CONFIG -->
     <script src="secrets.js"></script>
 
+    <!-- IMPORT FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app, databaseURL);
 
-        const ligneBebeInput = document.getElementById('ligneBebeInput');
-        const ligneCoeurInput = document.getElementById('ligneCoeurInput');
-        const ligneSexeInput = document.getElementById('ligneSexeInput');
-        const ligneMotDouxInput = document.getElementById('ligneMotDouxInput');
-        const countdownInput = document.getElementById('countdownInput');
-        const saveBtn = document.getElementById('saveBtn');
-        const statusMessage = document.getElementById('statusMessage');
+        // MOT DE PASSE (Tu peux le modifier ici si tu veux)
+        const MOT_DE_PASSE_SECRET = "bebe2026"; 
 
-        const annonceRef = ref(db, 'annonce');
-
-        // Charger les données actuelles dans les champs au chargement de la page
-        async function loadData() {
-            try {
-                const snapshot = await get(annonceRef);
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    ligneBebeInput.value = data.ligneBebe || "BÉBÉ EST...";
-                    ligneCoeurInput.value = data.ligneCoeur || "— ♡ —";
-                    ligneSexeInput.value = data.ligneSexe || "";
-                    ligneMotDouxInput.value = data.ligneMotDoux || "";
-                    countdownInput.value = data.countdownSeconds !== undefined ? data.countdownSeconds : 3;
-                }
-            } catch (error) {
-                console.error("Erreur lors du chargement :", error);
+        window.checkPassword = function() {
+            const saisie = document.getElementById('passwordInput').value;
+            if (saisie === MOT_DE_PASSE_SECRET) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('adminInterface').classList.remove('hidden');
+            } else {
+                document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";
             }
+        };
+
+        window.setChoice = function(sexe) {
+            const annonceRef = ref(db, 'annonce');
+            
+            let dataToSend = {};
+            if (sexe === 'fille') {
+                dataToSend = {
+                    ligneBebe: "C'est un beau",
+                    ligneCoeur: "💖",
+                    ligneSexe: "Fille !",
+                    confettiColors: ['#ffc0cb', '#ff69b4', '#ffffff']
+                };
+            } else {
+                dataToSend = {
+                    ligneBebe: "C'est un beau",
+                    ligneCoeur: "💙",
+                    ligneSexe: "Garçon !",
+                    confettiColors: ['#add8e6', '#87ceeb', '#ffffff']
+                };
+            }
+
+            set(annonceRef, dataToSend).then(() => {
+                document.getElementById('status').style.color = "green";
+                document.getElementById('status').innerText = "Choix enregistré avec succès ! ✨";
+                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+            }).catch((error) => {
+                document.getElementById('status').style.color = "red";
+                document.getElementById('status').innerText = "Erreur lors de l'enregistrement.";
+            });
         }
-
-        loadData();
-
-        // Sauvegarder les modifications dans Firebase
-        saveBtn.addEventListener('click', async () => {
-            try {
-                saveBtn.disabled = true;
-                saveBtn.innerText = "Enregistrement...";
-
-                // On récupère aussi les couleurs de confettis existantes pour ne pas les écraser
-                const snapshot = await get(annonceRef);
-                const existingData = snapshot.exists() ? snapshot.val() : {};
-
-                await set(annonceRef, {
-                    ...existingData,
-                    ligneBebe: ligneBebeInput.value,
-                    ligneCoeur: ligneCoeurInput.value,
-                    ligneSexe: ligneSexeInput.value,
-                    ligneMotDoux: ligneMotDouxInput.value,
-                    countdownSeconds: parseInt(countdownInput.value, 10) || 3
-                });
-
-                statusMessage.style.color = "#4CAF50";
-                statusMessage.innerText = "Modifications enregistrées avec succès ! ✨";
-                
-                setTimeout(() => {
-                    statusMessage.innerText = "";
-                }, 3000);
-            } catch (error) {
-                console.error("Erreur lors de la sauvegarde :", error);
-                statusMessage.style.color = "#F44336";
-                statusMessage.innerText = "Erreur lors de l'enregistrement.";
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerText = "Enregistrer les modifications 💾";
-            }
-        });
     </script>
-    <!-- IMPORT CONFIG -->
-    <script src="secrets.js"></script>
-     <!-- IMPORT FIREBASE -->    <script type="module">        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        const app = initializeApp(firebaseConfig);        const db = getDatabase(app, databaseURL);
-        const MOT_DE_PASSE_SECRET = "bebe2026"; 
-        window.checkPassword = function() {            const saisie = document.getElementById('passwordInput').value;            if (saisie === MOT_DE_PASSE_SECRET) {                document.getElementById('loginScreen').classList.add('hidden');                document.getElementById('adminInterface').classList.remove('hidden');            } else {                document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";            }
 </body>
 </html>
