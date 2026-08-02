@@ -178,6 +178,54 @@
             margin-top: 6px;
         }
 
+        /* ZONE DE RÉPONSE INTÉGRÉE */
+        .reply-box-container {
+            background: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #d1a878;
+            margin-top: 8px;
+            display: none;
+        }
+        .reply-box-container.active {
+            display: block;
+        }
+        .reply-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            box-sizing: border-box;
+            margin-bottom: 6px;
+            outline: none;
+        }
+        .admin-audio-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .btn-admin-mic {
+            background-color: #8c7355;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-admin-mic.recording {
+            background-color: #d9534f;
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
         /* BARRE D'ACTIONS PROPRE */
         .mod-actions-bar {
             display: flex;
@@ -303,7 +351,7 @@
     <!-- SECTION ADMINISTRATION DU LIVRE D'OR -->
     <div id="adminModSection" class="mod-section hidden">
         <h3>📖 Modération du Livre d'or</h3>
-        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages écrits et vocaux, ajoutez des cœurs, répondez ou supprimez.</p>
+        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Répondez aux proches en texte ou en vocal, ajoutez des cœurs ou supprimez.</p>
         
         <button class="btn-pdf" onclick="downloadBookPDF()">📥 Télécharger le Livre d'or en PDF</button>
 
@@ -324,6 +372,12 @@
         const db = getDatabase(app, databaseURL);
 
         const MOT_DE_PASSE_SECRET = "bebe2026"; 
+
+        // Gestion globale pour l'enregistrement admin
+        let adminMediaRecorder;
+        let adminAudioChunks = [];
+        let activeAdminAudioBase64 = null;
+        let activeRecordingMessageId = null;
 
         window.checkPassword = function() {
             const saisie = document.getElementById('passwordInput').value;
@@ -424,19 +478,43 @@
                         const hasHeart = item.coeur ? true : false;
                         const heartIcon = hasHeart ? '❤️' : '🤍';
                         
-                        // Lecteur audio admin si un vocal est présent
                         const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
+                        
+                        // Affichage de la réponse existante (texte ou audio)
+                        let reponseHtml = '';
+                        if (item.reponse || item.reponseAudio) {
+                            const repText = item.reponse ? `<p style="margin:2px 0;">${escapeHtml(item.reponse)}</p>` : '';
+                            const repAudio = item.reponseAudio ? `<audio controls src="${item.reponseAudio}"></audio>` : '';
+                            reponseHtml = `
+                                <div style="margin-top: 8px; padding: 8px; background-color: #f5f0ea; border-left: 3px solid #d1a878; font-size: 0.85rem; color: #8c7355;">
+                                    <strong>↳ Réponse :</strong>
+                                    ${repText}
+                                    ${repAudio}
+                                </div>
+                            `;
+                        }
 
                         div.innerHTML = `
                             <div class="mod-message-content">
                                 <strong>${escapeHtml(item.name)}</strong>
                                 <p>${escapeHtml(item.message)}</p>
                                 ${audioDisplay}
-                                ${item.reponse ? `<div style="margin-top: 8px; padding-left: 8px; border-left: 3px solid #d1a878; color: #8c7355; font-size: 0.85rem; font-style: italic;">↳ ${escapeHtml(item.reponse)}</div>` : ''}
+                                ${reponseHtml}
+                                
+                                <!-- ZONE DE RÉPONSE DÉPLIABLE -->
+                                <div id="replyContainer_${id}" class="reply-box-container">
+                                    <input type="text" id="replyText_${id}" class="reply-input" placeholder="Écris ta réponse textuelle..." value="${item.reponse || ''}">
+                                    <div class="admin-audio-row">
+                                        <button type="button" id="adminMicBtn_${id}" class="btn-admin-mic" onclick="toggleAdminRecording('${id}')">🎤 Vocal de réponse</button>
+                                        <span id="adminAudioStatus_${id}" style="font-size: 0.75rem; color: #8c7355; display:none;">Vocal prêt ✔️</span>
+                                        <button type="button" id="adminCancelAudio_${id}" onclick="cancelAdminAudio('${id}')" style="background:none; border:none; color:#d9534f; cursor:pointer; font-size:0.75rem; display:none;">✕</button>
+                                    </div>
+                                    <button onclick="saveReply('${id}')" style="background-color: #d1a878; padding: 6px; font-size: 0.8rem; width:100%; margin-top:4px;">Envoyer la réponse 💌</button>
+                                </div>
                             </div>
                             <div class="mod-actions-bar">
                                 <button class="mod-action-btn" onclick="toggleHeart('${id}', ${hasHeart})" title="Mettre un cœur">${heartIcon}</button>
-                                <button class="mod-action-btn" onclick="repondreMessage('${id}')" title="Répondre">💬</button>
+                                <button class="mod-action-btn" onclick="toggleReplyBox('${id}')" title="Répondre">💬</button>
                                 <button class="mod-delete-btn" onclick="deleteAdminMessage('${id}')">Supprimer 🗑️</button>
                             </div>
                         `;
@@ -448,25 +526,91 @@
             });
         }
 
+        window.toggleReplyBox = function(messageId) {
+            const box = document.getElementById('replyContainer_' + messageId);
+            box.classList.toggle('active');
+        };
+
+        // Enregistrement vocal pour la réponse admin
+        window.toggleAdminRecording = async function(messageId) {
+            const micBtn = document.getElementById(`adminMicBtn_${messageId}`);
+            
+            if (!adminMediaRecorder || adminMediaRecorder.state === "inactive") {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    adminAudioChunks = [];
+                    activeRecordingMessageId = messageId;
+                    adminMediaRecorder = new MediaRecorder(stream);
+                    
+                    adminMediaRecorder.ondataavailable = event => {
+                        adminAudioChunks.push(event.data);
+                    };
+
+                    adminMediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(adminAudioChunks, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            activeAdminAudioBase64 = reader.result;
+                            document.getElementById(`adminAudioStatus_${messageId}`).style.display = 'inline';
+                            document.getElementById(`adminCancelAudio_${messageId}`).style.display = 'inline';
+                        };
+                    };
+
+                    adminMediaRecorder.start();
+                    micBtn.innerText = "🛑 Stop";
+                    micBtn.classList.add('recording');
+                } catch (err) {
+                    alert("Impossible d'accéder au micro.");
+                }
+            } else if (adminMediaRecorder.state === "recording") {
+                adminMediaRecorder.stop();
+                adminMediaRecorder.stream.getTracks().forEach(track => track.stop());
+                micBtn.innerText = "🎤 Vocal de réponse";
+                micBtn.classList.remove('recording');
+            }
+        };
+
+        window.cancelAdminAudio = function(messageId) {
+            activeAdminAudioBase64 = null;
+            document.getElementById(`adminAudioStatus_${messageId}`).style.display = 'none';
+            document.getElementById(`adminCancelAudio_${messageId}`).style.display = 'none';
+        };
+
+        window.saveReply = function(messageId) {
+            const textVal = document.getElementById(`replyText_${messageId}`).value.trim();
+            const msgRef = ref(db, 'livre_or/' + messageId);
+            
+            let updateData = {};
+            if (textVal) updateData.reponse = textVal;
+            if (activeRecordingMessageId === messageId && activeAdminAudioBase64) {
+                updateData.reponseAudio = activeAdminAudioBase64;
+            }
+
+            if (Object.keys(updateData).length === 0) {
+                alert("Écris un texte ou enregistre un vocal avant d'envoyer !");
+                return;
+            }
+
+            update(msgRef, updateData).then(() => {
+                alert("Réponse enregistrée avec succès ! ✨");
+                activeAdminAudioBase64 = null;
+                activeRecordingMessageId = null;
+            }).catch(() => {
+                alert("Erreur lors de l'enregistrement de la réponse.");
+            });
+        };
+
         // Mettre ou enlever un cœur depuis l'interface amie
         window.toggleHeart = function(messageId, currentStatus) {
             const msgRef = ref(db, 'livre_or/' + messageId);
             update(msgRef, { coeur: !currentStatus });
         };
 
-        // Répondre à un message depuis l'interface amie
-        window.repondreMessage = function(messageId) {
-            const reponse = prompt("Écris ta réponse à ce message :");
-            if (reponse !== null && reponse.trim() !== "") {
-                const msgRef = ref(db, 'livre_or/' + messageId);
-                update(msgRef, { reponse: reponse.trim() });
-            }
-        };
-
         window.deleteAdminMessage = function(messageId) {
             if (confirm("Veux-tu vraiment supprimer ce message ?")) {
                 const msgRef = ref(db, 'livre_or/' + messageId);
-                remove(msgRef).catch((error) => {
+                remove(msgRef).catch(() => {
                     alert("Erreur lors de la suppression.");
                 });
             }
@@ -494,13 +638,20 @@
                 const messagesArray = Object.values(data).reverse();
                 messagesArray.forEach((item) => {
                     const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
-                    const audioNotice = item.audio ? '<div style="font-size: 11px; color: #d1a878; margin-top: 4px; font-style: italic;">🎤 [Message vocal inclus sur le site]</div>' : '';
+                    const audioNotice = item.audio ? '<div style="font-size: 11px; color: #d1a878; margin-top: 4px; font-style: italic;">🎤 [Message vocal du proche inclus sur le site]</div>' : '';
                     
-                    const reponseDisplay = item.reponse ? `
-                        <div style="margin-top: 8px; padding: 8px; background-color: #f5f0ea; border-left: 3px solid #d1a878; font-size: 12px; color: #8c7355; font-style: italic;">
-                            <strong>↳ Réponse :</strong> ${escapeHtml(item.reponse)}
-                        </div>
-                    ` : '';
+                    let reponseDisplay = '';
+                    if (item.reponse || item.reponseAudio) {
+                        const repText = item.reponse ? `<div>${escapeHtml(item.reponse)}</div>` : '';
+                        const repAudio = item.reponseAudio ? '<div style="font-style: italic; margin-top: 2px;">🎤 [Réponse vocale des parents incluse sur le site]</div>' : '';
+                        reponseDisplay = `
+                            <div style="margin-top: 8px; padding: 8px; background-color: #f5f0ea; border-left: 3px solid #d1a878; font-size: 12px; color: #8c7355;">
+                                <strong>↳ Réponse :</strong>
+                                ${repText}
+                                ${repAudio}
+                            </div>
+                        `;
+                    }
 
                     htmlContent += `
                         <div class="book-message-card">
@@ -539,8 +690,7 @@
                     }
                     alert("Une erreur est survenue lors de la génération du PDF.");
                 });
-            }).catch((error) => {
-                console.error(error);
+            }).catch(() => {
                 alert("Erreur lors de la récupération des messages.");
             });
         };
