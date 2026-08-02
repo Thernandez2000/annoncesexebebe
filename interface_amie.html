@@ -40,7 +40,7 @@
             color: #d1a878;
         }
 
-        input[type="password"], input[type="text"] {
+        input[type="password"], input[type="text"], input[type="number"] {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -264,43 +264,6 @@
             background-color: #c9302c;
         }
 
-        /* DESIGN DU LIVRE POUR LE PDF */
-        .book-export-wrapper {
-            background-color: #ffffff;
-            border: 2px solid #d1a878;
-            padding: 30px;
-            font-family: Arial, sans-serif;
-            color: #5a4a42;
-            width: 800px;
-            box-sizing: border-box;
-        }
-        .book-page-title {
-            text-align: center;
-            color: #8c7355;
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-        .book-page-subtitle {
-            text-align: center;
-            font-size: 14px;
-            color: #9c887d;
-            margin-bottom: 20px;
-        }
-        .book-message-card {
-            background: #fdfbf7;
-            border-left: 4px solid #d1a878;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-        .book-message-card strong {
-            color: #5a4a42;
-            font-size: 14px;
-        }
-        .book-message-card p {
-            margin: 5px 0 0 0;
-            color: #7a685e;
-            font-size: 13px;
-        }
         .btn-pdf {
             background-color: #8c7355;
             margin-top: 15px;
@@ -340,7 +303,14 @@
         <div class="input-group">
             <label for="motDouxInput">Petit mot doux (optionnel) :</label>
             <input type="text" id="motDouxInput" placeholder="ex: Prévu pour Décembre 2026">
-            <button onclick="saveMotDoux()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem;">Enregistrer le mot doux ✨</button>
+            <button onclick="saveMotDoux()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer le mot doux ✨</button>
+        </div>
+
+        <!-- Réglage de la durée du compte à rebours -->
+        <div class="input-group">
+            <label for="inputCountdown">⏱️ Durée du compte à rebours (en secondes) :</label>
+            <input type="number" id="inputCountdown" min="1" max="10" value="3">
+            <button onclick="saveCountdown()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer le chrono ⏱️</button>
         </div>
 
         <p id="status"></p>
@@ -402,6 +372,9 @@
                     if (data.ligneMotDoux) {
                         document.getElementById('motDouxInput').value = data.ligneMotDoux;
                     }
+                    if (data.countdownDuration !== undefined) {
+                        document.getElementById('inputCountdown').value = data.countdownDuration;
+                    }
                 } else {
                     badge.innerHTML = `📌 <b>Statut :</b> Non configuré`;
                 }
@@ -441,11 +414,20 @@
             const currentMotDoux = document.getElementById('motDouxInput').value;
             if (currentMotDoux) dataToSend.ligneMotDoux = currentMotDoux;
 
-            set(annonceRef, dataToSend).then(() => {
-                showNotification("Choix enregistré avec succès ! ✨");
-                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-                loadLiveStatus();
-            }).catch((error) => {
+            const currentCountdown = document.getElementById('inputCountdown').value;
+            if (currentCountdown) dataToSend.countdownDuration = parseInt(currentCountdown);
+
+            // On récupère aussi les couleurs et le reste si déjà existant
+            get(annonceRef).then((snapshot) => {
+                const existing = snapshot.val() || {};
+                const finalData = { ...existing, ...dataToSend };
+                
+                set(annonceRef, finalData).then(() => {
+                    showNotification("Choix enregistré avec succès ! ✨");
+                    confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+                    loadLiveStatus();
+                });
+            }).catch(() => {
                 showNotification("Erreur lors de l'enregistrement.", true);
             });
         }
@@ -457,7 +439,19 @@
             update(annonceRef, { ligneMotDoux: motDouxReel }).then(() => {
                 showNotification("Mot doux mis à jour ! 💌");
                 loadLiveStatus();
-            }).catch((error) => {
+            }).catch(() => {
+                showNotification("Erreur lors de la mise à jour.", true);
+            });
+        }
+
+        window.saveCountdown = function() {
+            const countdownVal = parseInt(document.getElementById('inputCountdown').value) || 3;
+            const annonceRef = ref(db, 'annonce');
+            
+            update(annonceRef, { countdownDuration: countdownVal }).then(() => {
+                showNotification("Durée du compte à rebours mise à jour ! ⏱️");
+                loadLiveStatus();
+            }).catch(() => {
                 showNotification("Erreur lors de la mise à jour.", true);
             });
         }
@@ -480,7 +474,6 @@
                         
                         const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
                         
-                        // Affichage de la réponse existante (texte ou audio)
                         let reponseHtml = '';
                         if (item.reponse || item.reponseAudio) {
                             const repText = item.reponse ? `<p style="margin:2px 0;">${escapeHtml(item.reponse)}</p>` : '';
@@ -534,7 +527,9 @@
         // Enregistrement vocal pour la réponse admin
         window.toggleAdminRecording = async function(messageId) {
             const micBtn = document.getElementById(`adminMicBtn_${messageId}`);
-            
+            const statusSpan = document.getElementById(`adminAudioStatus_${messageId}`);
+            const cancelBtn = document.getElementById(`adminCancelAudio_${messageId}`);
+
             if (!adminMediaRecorder || adminMediaRecorder.state === "inactive") {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -546,14 +541,16 @@
                         adminAudioChunks.push(event.data);
                     };
 
-                    adminMediaRecorder.onstop = async () => {
+                    adminMediaRecorder.onstop = () => {
                         const audioBlob = new Blob(adminAudioChunks, { type: 'audio/webm' });
                         const reader = new FileReader();
                         reader.readAsDataURL(audioBlob);
                         reader.onloadend = () => {
                             activeAdminAudioBase64 = reader.result;
-                            document.getElementById(`adminAudioStatus_${messageId}`).style.display = 'inline';
-                            document.getElementById(`adminCancelAudio_${messageId}`).style.display = 'inline';
+                            if (activeRecordingMessageId === messageId) {
+                                statusSpan.style.display = 'inline';
+                                cancelBtn.style.display = 'inline';
+                            }
                         };
                     };
 
@@ -561,7 +558,7 @@
                     micBtn.innerText = "🛑 Stop";
                     micBtn.classList.add('recording');
                 } catch (err) {
-                    alert("Impossible d'accéder au micro.");
+                    alert("Impossible d'accéder au microphone.");
                 }
             } else if (adminMediaRecorder.state === "recording") {
                 adminMediaRecorder.stop();
@@ -572,27 +569,25 @@
         };
 
         window.cancelAdminAudio = function(messageId) {
-            activeAdminAudioBase64 = null;
-            document.getElementById(`adminAudioStatus_${messageId}`).style.display = 'none';
-            document.getElementById(`adminCancelAudio_${messageId}`).style.display = 'none';
+            if (activeRecordingMessageId === messageId) {
+                activeAdminAudioBase64 = null;
+                document.getElementById(`adminAudioStatus_${messageId}`).style.display = 'none';
+                document.getElementById(`adminCancelAudio_${messageId}`).style.display = 'none';
+                document.getElementById(`adminMicBtn_${messageId}`).innerText = "🎤 Vocal de réponse";
+            }
         };
 
         window.saveReply = function(messageId) {
-            const textVal = document.getElementById(`replyText_${messageId}`).value.trim();
-            const msgRef = ref(db, 'livre_or/' + messageId);
+            const textReply = document.getElementById(`replyText_${messageId}`).value.trim();
+            const messageRef = ref(db, `livre_or/${messageId}`);
             
-            let updateData = {};
-            if (textVal) updateData.reponse = textVal;
+            const updateData = {};
+            if (textReply) updateData.reponse = textReply;
             if (activeRecordingMessageId === messageId && activeAdminAudioBase64) {
                 updateData.reponseAudio = activeAdminAudioBase64;
             }
 
-            if (Object.keys(updateData).length === 0) {
-                alert("Écris un texte ou enregistre un vocal avant d'envoyer !");
-                return;
-            }
-
-            update(msgRef, updateData).then(() => {
+            update(messageRef, updateData).then(() => {
                 alert("Réponse enregistrée avec succès ! ✨");
                 activeAdminAudioBase64 = null;
                 activeRecordingMessageId = null;
@@ -601,97 +596,70 @@
             });
         };
 
-        // Mettre ou enlever un cœur depuis l'interface amie
-        window.toggleHeart = function(messageId, currentStatus) {
-            const msgRef = ref(db, 'livre_or/' + messageId);
-            update(msgRef, { coeur: !currentStatus });
+        window.toggleHeart = function(messageId, currentHeartState) {
+            const messageRef = ref(db, `livre_or/${messageId}`);
+            update(messageRef, { coeur: !currentHeartState });
         };
 
         window.deleteAdminMessage = function(messageId) {
-            if (confirm("Veux-tu vraiment supprimer ce message ?")) {
-                const msgRef = ref(db, 'livre_or/' + messageId);
-                remove(msgRef).catch(() => {
-                    alert("Erreur lors de la suppression.");
-                });
+            if (confirm("Voulez-vous vraiment supprimer ce message ?")) {
+                const messageRef = ref(db, `livre_or/${messageId}`);
+                remove(messageRef);
             }
         };
 
         window.downloadBookPDF = function() {
-            const messagesRef = query(ref(db, 'livre_or'), limitToLast(100));
-            
-            get(messagesRef).then((snapshot) => {
+            const messagesRefOnce = query(ref(db, 'livre_or'), limitToLast(200));
+            get(messagesRefOnce).then((snapshot) => {
                 const data = snapshot.val();
                 if (!data) {
-                    alert("Aucun message à exporter pour le moment !");
+                    alert("Aucun message à exporter.");
                     return;
                 }
 
-                const exportContainer = document.createElement('div');
-                exportContainer.className = 'book-export-wrapper';
+                const exportDiv = document.createElement('div');
+                exportDiv.className = 'book-export-wrapper';
                 
                 let htmlContent = `
-                    <h1 class="book-page-title">Livre d'Or de Bébé</h1>
-                    <div class="book-page-subtitle">Les doux mots écrits et vocaux de nos proches et de notre famille</div>
+                    <h1 class="book-page-title">📖 Livre d'or — Annonce Bébé</h1>
+                    <div class="book-page-subtitle">Tous les doux messages des proches</div>
                     <hr style="border: 0; border-top: 1px solid #d1a878; margin-bottom: 20px;">
                 `;
 
-                const messagesArray = Object.values(data).reverse();
-                messagesArray.forEach((item) => {
-                    const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
-                    const audioNotice = item.audio ? '<div style="font-size: 11px; color: #d1a878; margin-top: 4px; font-style: italic;">🎤 [Message vocal du proche inclus sur le site]</div>' : '';
+                const entries = Object.entries(data);
+                entries.forEach(([id, item]) => {
+                    const heart = item.coeur ? ' ❤️' : '';
+                    const msg = escapeHtml(item.message || '');
+                    const name = escapeHtml(item.name || 'Anonyme');
                     
-                    let reponseDisplay = '';
-                    if (item.reponse || item.reponseAudio) {
-                        const repText = item.reponse ? `<div>${escapeHtml(item.reponse)}</div>` : '';
-                        const repAudio = item.reponseAudio ? '<div style="font-style: italic; margin-top: 2px;">🎤 [Réponse vocale des parents incluse sur le site]</div>' : '';
-                        reponseDisplay = `
-                            <div style="margin-top: 8px; padding: 8px; background-color: #f5f0ea; border-left: 3px solid #d1a878; font-size: 12px; color: #8c7355;">
-                                <strong>↳ Réponse :</strong>
-                                ${repText}
-                                ${repAudio}
-                            </div>
-                        `;
+                    let repBlock = '';
+                    if (item.reponse) {
+                        repBlock = `<p style="margin-top: 6px; font-style: italic; color: #8c7355;"><strong>Réponse des parents :</strong> ${escapeHtml(item.reponse)}</p>`;
                     }
 
                     htmlContent += `
                         <div class="book-message-card">
-                            ${heartDisplay}
-                            <strong>${escapeHtml(item.name)}</strong>
-                            <p>${escapeHtml(item.message)}</p>
-                            ${audioNotice}
-                            ${reponseDisplay}
+                            <strong>${name}${heart}</strong>
+                            <p>${msg}</p>
+                            ${repBlock}
                         </div>
                     `;
                 });
 
-                exportContainer.innerHTML = htmlContent;
-                
-                exportContainer.style.position = 'fixed';
-                exportContainer.style.left = '0';
-                exportContainer.style.top = '0';
-                exportContainer.style.zIndex = '-9999';
-                exportContainer.style.opacity = '0';
-                document.body.appendChild(exportContainer);
+                exportDiv.innerHTML = htmlContent;
+                document.body.appendChild(exportDiv);
 
-                const options = {
+                const opt = {
                     margin:       10,
-                    filename:     'Livre_d_or_bebe.pdf',
+                    filename:     'Livre_d_or_Bebe.pdf',
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 1, useCORS: true, logging: true },
+                    html2canvas:  { scale: 2 },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
-                html2pdf().from(exportContainer).set(options).save().then(() => {
-                    document.body.removeChild(exportContainer);
-                }).catch(err => {
-                    console.error(err);
-                    if (document.body.contains(exportContainer)) {
-                        document.body.removeChild(exportContainer);
-                    }
-                    alert("Une erreur est survenue lors de la génération du PDF.");
+                html2pdf().from(exportDiv).set(opt).save().then(() => {
+                    document.body.removeChild(exportDiv);
                 });
-            }).catch(() => {
-                alert("Erreur lors de la récupération des messages.");
             });
         };
 
