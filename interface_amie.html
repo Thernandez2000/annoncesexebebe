@@ -172,6 +172,11 @@
             word-break: break-word;
             overflow-wrap: break-word;
         }
+        .mod-message-item audio {
+            width: 100%;
+            height: 32px;
+            margin-top: 6px;
+        }
 
         /* BARRE D'ACTIONS PROPRE */
         .mod-actions-bar {
@@ -298,7 +303,7 @@
     <!-- SECTION ADMINISTRATION DU LIVRE D'OR -->
     <div id="adminModSection" class="mod-section hidden">
         <h3>📖 Modération du Livre d'or</h3>
-        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages, ajoutez des cœurs, répondez ou supprimez.</p>
+        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages écrits et vocaux, ajoutez des cœurs, répondez ou supprimez.</p>
         
         <button class="btn-pdf" onclick="downloadBookPDF()">📥 Télécharger le Livre d'or en PDF</button>
 
@@ -418,11 +423,15 @@
                         
                         const hasHeart = item.coeur ? true : false;
                         const heartIcon = hasHeart ? '❤️' : '🤍';
+                        
+                        // Lecteur audio admin si un vocal est présent
+                        const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
 
                         div.innerHTML = `
                             <div class="mod-message-content">
                                 <strong>${escapeHtml(item.name)}</strong>
                                 <p>${escapeHtml(item.message)}</p>
+                                ${audioDisplay}
                                 ${item.reponse ? `<div style="margin-top: 8px; padding-left: 8px; border-left: 3px solid #d1a878; color: #8c7355; font-size: 0.85rem; font-style: italic;">↳ ${escapeHtml(item.reponse)}</div>` : ''}
                             </div>
                             <div class="mod-actions-bar">
@@ -478,13 +487,15 @@
                 
                 let htmlContent = `
                     <h1 class="book-page-title">Livre d'Or de Bébé</h1>
-                    <div class="book-page-subtitle">Les doux mots de nos proches et de notre famille</div>
+                    <div class="book-page-subtitle">Les doux mots écrits et vocaux de nos proches et de notre famille</div>
                     <hr style="border: 0; border-top: 1px solid #d1a878; margin-bottom: 20px;">
                 `;
 
                 const messagesArray = Object.values(data).reverse();
                 messagesArray.forEach((item) => {
                     const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
+                    const audioNotice = item.audio ? '<div style="font-size: 11px; color: #d1a878; margin-top: 4px; font-style: italic;">🎤 [Message vocal inclus sur le site]</div>' : '';
+                    
                     const reponseDisplay = item.reponse ? `
                         <div style="margin-top: 8px; padding: 8px; background-color: #f5f0ea; border-left: 3px solid #d1a878; font-size: 12px; color: #8c7355; font-style: italic;">
                             <strong>↳ Réponse :</strong> ${escapeHtml(item.reponse)}
@@ -496,6 +507,7 @@
                             ${heartDisplay}
                             <strong>${escapeHtml(item.name)}</strong>
                             <p>${escapeHtml(item.message)}</p>
+                            ${audioNotice}
                             ${reponseDisplay}
                         </div>
                     `;
