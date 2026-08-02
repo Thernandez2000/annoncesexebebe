@@ -287,7 +287,7 @@
     <!-- IMPORT FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, remove, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, remove, get, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app, databaseURL);
@@ -378,7 +378,7 @@
         }
 
         function loadAdminMessages() {
-            const messagesRef = query(ref(db, 'livre_or'), limitToLast(50));
+            const messagesRef = query(ref(db, 'livre_or'), limitToLast(100));
             onValue(messagesRef, (snapshot) => {
                 const listEl = document.getElementById('adminMessagesList');
                 listEl.innerHTML = '';
@@ -413,7 +413,8 @@
 
         window.downloadBookPDF = function() {
             const messagesRef = query(ref(db, 'livre_or'), limitToLast(100));
-            onValue(messagesRef, (snapshot) => {
+            
+            get(messagesRef).then((snapshot) => {
                 const data = snapshot.val();
                 if (!data) {
                     alert("Aucun message à exporter pour le moment !");
@@ -441,7 +442,6 @@
 
                 exportContainer.innerHTML = htmlContent;
                 
-                // Positionnement temporaire pour forcer le rendu correct sur mobile
                 exportContainer.style.position = 'absolute';
                 exportContainer.style.left = '0';
                 exportContainer.style.top = '-99999px';
@@ -462,7 +462,10 @@
                     document.body.removeChild(exportContainer);
                     alert("Une erreur est survenue lors de la génération du PDF.");
                 });
-            }, { onlyOnce: true });
+            }).catch((error) => {
+                console.error(error);
+                alert("Erreur lors de la récupération des messages.");
+            });
         };
 
         function escapeHtml(text) {
