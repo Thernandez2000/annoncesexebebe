@@ -273,6 +273,32 @@
             resize: vertical;
             height: 60px;
         }
+
+        /* STYLE DU CHOIX PRIVÉ / PUBLIC */
+        .privacy-choice-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fdfbf7;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            border: 1px solid #eee;
+            font-size: 0.85rem;
+            color: #5a4a42;
+        }
+        .privacy-options {
+            display: flex;
+            gap: 10px;
+        }
+        .privacy-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
         .guestbook-btn {
             background-color: #d1a878;
             color: white;
@@ -323,13 +349,17 @@
             overflow: hidden;
             background-color: #f5f0ea;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            cursor: pointer;
         }
         .gallery-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
-            transition: filter 0.3s ease;
+            transition: filter 0.3s ease, transform 0.2s ease;
+        }
+        .gallery-item:hover img {
+            transform: scale(1.03);
         }
         .gallery-item.private img {
             filter: blur(8px);
@@ -346,6 +376,48 @@
             background-color: rgba(90, 74, 66, 0.2);
             font-size: 1.5rem;
             z-index: 2;
+            pointer-events: none;
+        }
+
+        /* MODALE POUR AGRANDIR LA PHOTO EN ENTIER */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .image-modal.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .image-modal img {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2.5rem;
+            cursor: pointer;
+            font-weight: bold;
         }
 
         /* STYLES POUR L'ENREGISTREUR VOCAL */
@@ -463,6 +535,19 @@
          <input type="text" id="visitorName" class="guestbook-input" placeholder="Ton prénom et nom">
          <textarea id="visitorMessage" class="guestbook-input" placeholder="Ton petit mot doux (optionnel si tu fais un vocal)..."></textarea>
          
+         <!-- CHOIX DE LA CONFIDENTIALITÉ DU MESSAGE -->
+         <div class="privacy-choice-container">
+             <span>Visibilité :</span>
+             <div class="privacy-options">
+                 <label class="privacy-label">
+                     <input type="radio" name="msgPrivacy" value="public" checked> Public 🌍
+                 </label>
+                 <label class="privacy-label">
+                     <input type="radio" name="msgPrivacy" value="private"> Privé (pour les parents) 🔒
+                 </label>
+             </div>
+         </div>
+
          <!-- BOUTON & APERÇU VOCAL -->
          <div class="audio-record-container">
              <button type="button" id="recordBtn" class="btn-mic" onclick="toggleRecording()">🎤 Enregistrer un vocal</button>
@@ -486,6 +571,12 @@
          <div class="gallery-grid" id="galleryGrid">
              <!-- Les photos s'afficheront ici en direct -->
          </div>
+    </div>
+
+    <!-- FENÊTRE MODALE POUR ZOOMER LA PHOTO -->
+    <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+        <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
+        <img id="modalImage" src="" alt="Photo en grand">
     </div>
 
     <!-- AUDIO SYNTHÉTIQUE -->
@@ -571,7 +662,7 @@
             }
         });
 
-        // CHARGEMENT EN TEMPS RÉEL DE LA GALERIE PHOTO (Toujours actif et visible)
+        // CHARGEMENT EN TEMPS RÉEL DE LA GALERIE PHOTO
         const galleryRef = ref(db, 'galerie');
         onValue(galleryRef, (snapshot) => {
             const galleryGrid = document.getElementById('galleryGrid');
@@ -582,14 +673,18 @@
                 const photos = Object.entries(data).reverse(); // Les plus récentes en premier
                 photos.forEach(([id, photo]) => {
                     const isPrivate = photo.prive === true;
+                    const photoUrl = photo.url || photo.image;
                     
                     const itemDiv = document.createElement('div');
                     itemDiv.className = `gallery-item ${isPrivate ? 'private' : ''}`;
                     
+                    // Si on clique, on ouvre en grand (même si floutée ou non)
+                    itemDiv.onclick = () => openImageModal(photoUrl);
+
                     let lockHtml = isPrivate ? '<div class="lock-overlay">🔒</div>' : '';
                     
                     itemDiv.innerHTML = `
-                        <img src="${photo.url || photo.image}" alt="Souvenir de galerie">
+                        <img src="${photoUrl}" alt="Souvenir de galerie">
                         ${lockHtml}
                     `;
                     galleryGrid.appendChild(itemDiv);
@@ -598,6 +693,19 @@
                 galleryGrid.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center; grid-column: span 2;">Aucune photo pour le moment.</p>';
             }
         });
+
+        // Fonctions pour gérer la modale plein écran
+        window.openImageModal = function(url) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modalImg.src = url;
+            modal.classList.add('visible');
+        };
+
+        window.closeImageModal = function() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('visible');
+        };
 
         // VARIABLES POUR L'ENREGISTREMENT AUDIO
         let mediaRecorder;
@@ -654,15 +762,6 @@
         img.onload = function() {
             isImageLoaded = true;
             initScratchLayer();
-        };
-
-        window.checkAdminAccess = function() {
-            const saisie = document.getElementById('adminPasswordInput').value;
-            if (saisie === "admin2000") {
-                document.getElementById('maintenancePopup').style.display = 'none';
-            } else {
-                document.getElementById('adminErrorMsg').innerText = "Mot de passe incorrect !";
-            }
         };
 
         window.initScratchLayer = function() {
@@ -753,6 +852,8 @@
         window.postMessage = function() {
             const name = document.getElementById('visitorName').value.trim();
             const message = document.getElementById('visitorMessage').value.trim();
+            const privacySelected = document.querySelector('input[name="msgPrivacy"]:checked').value;
+            const isPrivate = privacySelected === 'private';
 
             if (!name || (!message && !recordedAudioBase64)) {
                 alert("Merci d'indiquer ton nom et d'écrire un mot ou d'enregistrer un vocal !");
@@ -762,6 +863,7 @@
             const messageData = {
                 name: name,
                 message: message || "(Message vocal)",
+                prive: isPrivate,
                 timestamp: Date.now()
             };
 
@@ -774,7 +876,7 @@
                 document.getElementById('visitorName').value = '';
                 document.getElementById('visitorMessage').value = '';
                 cancelAudio();
-                alert("Message envoyé avec succès ! ✨");
+                alert(isPrivate ? "Message privé bien envoyé aux parents ! 🔒" : "Message public posté avec succès ! ✨");
             }).catch(() => {
                 alert("Erreur lors de l'envoi du message.");
             });
@@ -787,9 +889,15 @@
                 listEl.innerHTML = '';
                 
                 const data = snapshot.val();
+                let hasPublicMessages = false;
+
                 if (data) {
                     const entries = Object.entries(data).reverse();
                     entries.forEach(([id, item]) => {
+                        // On n'affiche dans le flux public que les messages qui ne sont pas privés
+                        if (item.prive === true) return;
+
+                        hasPublicMessages = true;
                         const div = document.createElement('div');
                         div.className = 'message-item';
                         
@@ -819,8 +927,10 @@
                         `;
                         listEl.appendChild(div);
                     });
-                } else {
-                    listEl.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center;">Soyez le premier à laisser un mot !</p>';
+                } 
+                
+                if (!hasPublicMessages) {
+                    listEl.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center;">Soyez le premier à laisser un mot public !</p>';
                 }
             });
         }
