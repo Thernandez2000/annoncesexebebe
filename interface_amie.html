@@ -177,11 +177,8 @@
             background-color: #c9302c;
         }
 
-        /* DESIGN DU LIVRE POUR LE PDF (Masqué à l'écran, utilisé uniquement pour l'export) */
+        /* DESIGN DU LIVRE POUR LE PDF */
         .book-export-wrapper {
-            position: absolute;
-            left: -9999px;
-            top: -9999px;
             background-color: #fdfbf7;
             background-image: radial-gradient(#e8dfd8 0.75px, transparent 0.75px);
             background-size: 15px 15px;
@@ -443,6 +440,11 @@
                 });
 
                 exportContainer.innerHTML = htmlContent;
+                
+                // Positionnement temporaire pour forcer le rendu correct sur mobile
+                exportContainer.style.position = 'absolute';
+                exportContainer.style.left = '0';
+                exportContainer.style.top = '-99999px';
                 document.body.appendChild(exportContainer);
 
                 const options = {
@@ -455,6 +457,10 @@
 
                 html2pdf().from(exportContainer).set(options).save().then(() => {
                     document.body.removeChild(exportContainer);
+                }).catch(err => {
+                    console.error(err);
+                    document.body.removeChild(exportContainer);
+                    alert("Une erreur est survenue lors de la génération du PDF.");
                 });
             }, { onlyOnce: true });
         };
