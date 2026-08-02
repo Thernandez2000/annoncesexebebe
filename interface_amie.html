@@ -52,6 +52,14 @@
             box-sizing: border-box;
         }
 
+        /* Style pour les champs désactivés / grisés */
+        input[type="number"]:disabled {
+            background-color: #f0f0f0;
+            color: #aaa;
+            border-color: #e0e0e0;
+            cursor: not-allowed;
+        }
+
         button {
             background-color: #d1a878;
             color: white;
@@ -345,14 +353,14 @@
             
             <div style="display: flex; gap: 15px; margin-bottom: 10px;">
                 <label style="cursor: pointer; font-weight: normal;">
-                    <input type="radio" name="showCountdownRadio" value="true" checked> Oui
+                    <input type="radio" name="showCountdownRadio" value="true" onchange="toggleCountdownInputState()" checked> Oui
                 </label>
                 <label style="cursor: pointer; font-weight: normal;">
-                    <input type="radio" name="showCountdownRadio" value="false"> Non (Révélation immédiate)
+                    <input type="radio" name="showCountdownRadio" value="false" onchange="toggleCountdownInputState()"> Non (Révélation immédiate)
                 </label>
             </div>
 
-            <label for="inputCountdown">Durée (en secondes) :</label>
+            <label for="inputCountdown" id="labelCountdown" style="transition: color 0.3s;">Durée (en secondes) :</label>
             <input type="number" id="inputCountdown" min="1" max="10" value="3" style="margin-top: 5px;">
             
             <button onclick="saveCountdownSettings()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer les options du chrono ⏱️</button>
@@ -456,20 +464,34 @@
             }
         };
 
+        // Gestion de l'état grisé / actif du champ durée du compte à rebours
+        window.toggleCountdownInputState = function() {
+            const showCountdownVal = document.querySelector('input[name="showCountdownRadio"]:checked').value === 'true';
+            const inputCountdown = document.getElementById('inputCountdown');
+            const labelCountdown = document.getElementById('labelCountdown');
+
+            if (showCountdownVal) {
+                inputCountdown.disabled = false;
+                labelCountdown.style.color = '#7a685e';
+            } else {
+                inputCountdown.disabled = true;
+                labelCountdown.style.color = '#ccc';
+            }
+        };
+
         function loadLiveStatus() {
-            // Charger les infos de l'annonce et du compte à rebours (dans le nœud controle)
             const controlRef = ref(db, 'controle');
             onValue(controlRef, (snapshot) => {
                 const controlData = snapshot.val() || {};
                 const showCd = controlData.showCountdown !== false; // true par défaut
                 
-                // Mettre à jour les radios Oui/Non
                 const radios = document.getElementsByName('showCountdownRadio');
                 for (let r of radios) {
                     if (r.value === String(showCd)) {
                         r.checked = true;
                     }
                 }
+                toggleCountdownInputState(); // Appliquer l'état grisé selon la valeur chargée
             }, { onlyOnce: true });
 
             const annonceRef = ref(db, 'annonce');
@@ -584,13 +606,11 @@
             const showCountdownVal = document.querySelector('input[name="showCountdownRadio"]:checked').value === 'true';
             const countdownVal = parseInt(document.getElementById('inputCountdown').value) || 3;
 
-            // Sauvegarder dans le nœud "controle" (écouté en temps réel par index.html)
             const controlRef = ref(db, 'controle');
             update(controlRef, { 
                 showCountdown: showCountdownVal 
             });
 
-            // Sauvegarder aussi la durée dans "annonce"
             const annonceRef = ref(db, 'annonce');
             update(annonceRef, { 
                 countdownDuration: countdownVal 
