@@ -48,7 +48,7 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow-y: auto; /* Permet de scroller pour voir le livre d'or */
+            overflow-y: auto;
         }
 
         .card-container {
@@ -129,7 +129,7 @@
             background-color: transparent;
         }
 
-        /* BOUTON RECOMMENCER (Caché au départ) */
+        /* BOUTON RECOMMENCER */
         .restart-btn {
             position: absolute;
             bottom: 2%;
@@ -180,7 +180,7 @@
             box-sizing: border-box;
             margin-top: 25px;
             margin-bottom: 30px;
-            display: none; /* Caché au départ, s'affiche après le grattage */
+            display: none;
             z-index: 5;
             text-align: left;
         }
@@ -205,7 +205,7 @@
         }
         textarea.guestbook-input {
             resize: vertical;
-            height: 70px;
+            height: 60px;
         }
         .guestbook-btn {
             background-color: #d1a878;
@@ -222,14 +222,59 @@
         .guestbook-btn:hover {
             background-color: #bc9363;
         }
+
+        /* STYLES POUR L'ENREGISTREUR VOCAL */
+        .audio-record-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        .btn-mic {
+            background-color: #8c7355;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .btn-mic.recording {
+            background-color: #d9534f;
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .audio-preview-wrapper {
+            font-size: 0.8rem;
+            color: #7a685e;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f9f6f0;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: none;
+        }
+        .audio-preview-wrapper.visible {
+            display: flex;
+        }
+
         .messages-list {
-            max-height: 180px;
+            max-height: 220px;
             overflow-y: auto;
             margin-top: 15px;
             padding-right: 5px;
         }
         
-        /* CARTE DE MESSAGE DU LIVRE D'OR SÉCURISÉE CONTRE LES TEXTES LONGS */
         .message-item {
             background: #f9f6f0;
             padding: 10px 12px;
@@ -247,6 +292,11 @@
             color: #7a685e;
             word-break: break-word;
             overflow-wrap: break-word;
+        }
+        .message-item audio {
+            width: 100%;
+            height: 32px;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -282,13 +332,23 @@
         <a href="interface_amie.html" class="secret-admin-btn" title="Admin"></a>
     </div>
 
-    <!-- LIVRE D'OR (Placé proprement en dessous de la carte) -->
+    <!-- LIVRE D'OR -->
     <div id="guestbookSection" class="guestbook-section">
          <h3>Livre d'or 💌</h3>
-         <p style="font-size: 0.8rem; color: #7a685e; text-align: center; margin-bottom: 10px;">Laisse un petit mot aux parents !</p>
+         <p style="font-size: 0.8rem; color: #7a685e; text-align: center; margin-bottom: 10px;">Laisse un petit mot écrit ou vocal aux parents !</p>
     
          <input type="text" id="visitorName" class="guestbook-input" placeholder="Ton prénom et nom">
-         <textarea id="visitorMessage" class="guestbook-input" placeholder="Ton petit mot doux..."></textarea>
+         <textarea id="visitorMessage" class="guestbook-input" placeholder="Ton petit mot doux (optionnel si tu fais un vocal)..."></textarea>
+         
+         <!-- BOUTON & APERÇU VOCAL -->
+         <div class="audio-record-container">
+             <button type="button" id="recordBtn" class="btn-mic" onclick="toggleRecording()">🎤 Enregistrer un vocal</button>
+             <div id="audioPreviewWrapper" class="audio-preview-wrapper" style="flex-grow: 1;">
+                 <span id="audioStatusText" style="font-weight: bold; color: #8c7355;">Vocal prêt ✔️</span>
+                 <button type="button" onclick="cancelAudio()" style="background:none; border:none; color:#d9534f; cursor:pointer; font-weight:bold; font-size:0.8rem;">Supprimer ✕</button>
+             </div>
+         </div>
+
          <button class="guestbook-btn" onclick="postMessage()">Envoyer mon message ✨</button>
 
          <div class="messages-list" id="messagesList">
@@ -345,6 +405,56 @@
         const ctx = canvas.getContext('2d');
         const restartBtn = document.getElementById('restartBtn');
         let confettiColors = ['#ffc0cb', '#ff69b4', '#ffffff', '#d1a878'];
+
+        // VARIABLES POUR L'ENREGISTREMENT AUDIO
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordedAudioBase64 = null;
+
+        window.toggleRecording = async function() {
+            const recordBtn = document.getElementById('recordBtn');
+            
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioChunks = [];
+                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        // Conversion du blob audio en Base64 pour le stocker directement dans Firebase
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            recordedAudioBase64 = reader.result;
+                            document.getElementById('audioPreviewWrapper').classList.add('visible');
+                        };
+                    };
+
+                    mediaRecorder.start();
+                    recordBtn.innerText = "🛑 Arrêter l'enregistrement";
+                    recordBtn.classList.add('recording');
+                } catch (err) {
+                    alert("Impossible d'accéder au microphone. Vérifie les autorisations de ton navigateur.");
+                }
+            } else if (mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                // Couper le flux du micro
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                recordBtn.innerText = "🎤 Enregistrer un vocal";
+                recordBtn.classList.remove('recording');
+            }
+        };
+
+        window.cancelAudio = function() {
+            recordedAudioBase64 = null;
+            document.getElementById('audioPreviewWrapper').classList.remove('visible');
+            document.getElementById('recordBtn').innerText = "🎤 Enregistrer un vocal";
+        };
 
         const img = new Image();
         img.src = 'bebe.jpg';
@@ -444,18 +554,25 @@
             const name = document.getElementById('visitorName').value.trim();
             const message = document.getElementById('visitorMessage').value.trim();
 
-            if (!name || !message) {
-                alert("Merci d'indiquer ton nom et ton message !");
+            if (!name || (!message && !recordedAudioBase64)) {
+                alert("Merci d'indiquer ton nom et d'écrire un mot ou d'enregistrer un vocal !");
                 return;
             }
 
-            const messagesRef = ref(db, 'livre_or');
-            push(messagesRef, {
+            const messageData = {
                 name: name,
-                message: message,
+                message: message || "(Message vocal 🎤)",
                 date: Date.now()
-            }).then(() => {
+            };
+
+            if (recordedAudioBase64) {
+                messageData.audio = recordedAudioBase64;
+            }
+
+            const messagesRef = ref(db, 'livre_or');
+            push(messagesRef, messageData).then(() => {
                 document.getElementById('visitorMessage').value = '';
+                cancelAudio();
                 alert("Message envoyé avec succès ! 💖");
             }).catch((error) => {
                 alert("Erreur lors de l'envoi.");
@@ -476,6 +593,10 @@
                         div.className = 'message-item';
 
                         const heartDisplay = item.coeur ? '<span style="float: right; font-size: 1.1rem;">❤️</span>' : '';
+                        
+                        // Affichage du lecteur audio si un vocal est présent
+                        const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
+                        
                         const reponseDisplay = item.reponse ? `
                             <div style="margin-top: 6px; padding: 6px 8px; background-color: #f3efe6; border-left: 3px solid #d1a878; border-radius: 4px; font-size: 0.8rem; color: #8c7355; word-break: break-word; overflow-wrap: break-word;">
                                 <strong>↳ Réponse :</strong> <i>${escapeHtml(item.reponse)}</i>
@@ -486,6 +607,7 @@
                             ${heartDisplay}
                             <strong>${escapeHtml(item.name)}</strong>
                             <p>${escapeHtml(item.message)}</p>
+                            ${audioDisplay}
                             ${reponseDisplay}
                         `;
                         listEl.appendChild(div);
