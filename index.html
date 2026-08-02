@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Annonce Surprise !</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Bibliothèque pour capturer l'élément en image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         /* POP-UP DE MAINTENANCE */
@@ -192,6 +194,34 @@
             background-color: #bc9363;
         }
 
+        /* BOUTON PARTAGER LE RÉSULTAT EN IMAGE */
+        .share-img-btn {
+            position: absolute;
+            bottom: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #8c7355;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            z-index: 5;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease, background 0.3s;
+            white-space: nowrap;
+        }
+        .share-img-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .share-img-btn:hover {
+            background-color: #725c43;
+        }
+
         /* PETIT BOUTON SECRET DISCRET */
         .secret-admin-btn {
             position: absolute;
@@ -214,7 +244,7 @@
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             box-sizing: border-box;
-            margin-top: 25px;
+            margin-top: 55px; /* Légèrement augmenté pour laisser la place au bouton de partage */
             margin-bottom: 30px;
             display: none;
             z-index: 5;
@@ -350,7 +380,7 @@
       </div>
     </div>
 
-    <div class="card-container">
+    <div class="card-container" id="cardContainer">
         <!-- LE MESSAGE SECRET -->
         <div class="hidden-message">
             <p class="ligne-bebe" id="textBebe">BÉBÉ EST...</p>
@@ -370,6 +400,9 @@
 
         <!-- BOUTON RECOMMENCER -->
         <button id="restartBtn" class="restart-btn" onclick="resetScratch()">Recommencer 🔄</button>
+
+        <!-- BOUTON PARTAGER EN IMAGE -->
+        <button id="shareImgBtn" class="share-img-btn" onclick="shareRevealImage()">📸 Partager en image</button>
 
         <a href="interface_amie.html" class="secret-admin-btn" title="Admin"></a>
     </div>
@@ -460,6 +493,7 @@
         const canvas = document.getElementById('scratchCanvas');
         const ctx = canvas.getContext('2d');
         const restartBtn = document.getElementById('restartBtn');
+        const shareImgBtn = document.getElementById('shareImgBtn');
         let confettiColors = ['#ffc0cb', '#ff69b4', '#ffffff', '#d1a878'];
         let countdownDuration = 3; // Par défaut à 3 secondes
 
@@ -571,6 +605,7 @@
             isCountingDown = false;
             document.getElementById('countdownOverlay').classList.remove('visible');
             restartBtn.classList.remove('visible');
+            shareImgBtn.classList.remove('visible');
             document.getElementById('guestbookSection').classList.remove('visible');
         }
 
@@ -747,6 +782,7 @@
                     revealed = true;
                     canvas.style.opacity = '0';
                     restartBtn.classList.add('visible');
+                    shareImgBtn.classList.add('visible');
                     playSuccessSound();
                     confetti({
                         particleCount: 100,
@@ -761,6 +797,56 @@
 
         window.resetScratch = function() {
             initScratchLayer();
+        };
+
+        // FONCTION DE PARTAGE EN IMAGE AVEC HTML2CANVAS
+        window.shareRevealImage = async function() {
+            const targetElement = document.getElementById('cardContainer');
+            if (!targetElement) return;
+
+            try {
+                // Masque temporairement les boutons "Recommencer" et "Partager" pour qu'ils n'apparaissent pas sur l'image générée
+                restartBtn.style.display = 'none';
+                shareImgBtn.style.display = 'none';
+
+                const canvasImg = await html2canvas(targetElement, { 
+                    scale: 2, 
+                    useCORS: true 
+                });
+
+                // Remet les boutons en place
+                restartBtn.style.display = '';
+                shareImgBtn.style.display = '';
+
+                canvasImg.toBlob(async (blob) => {
+                    const file = new File([blob], "Annonce_Bebe.png", { type: "image/png" });
+                    const filesArray = [file];
+
+                    if (navigator.canShare && navigator.canShare({ files: filesArray })) {
+                        try {
+                            await navigator.share({
+                                title: "C'est un secret !",
+                                text: "Viens découvrir le résultat de notre révélation ! 🎉",
+                                files: filesArray,
+                            });
+                        } catch (error) {
+                            console.log("Partage annulé", error);
+                        }
+                    } else {
+                        // Repli PC : téléchargement direct de l'image
+                        const link = document.createElement('a');
+                        link.download = 'Annonce_Bebe.png';
+                        link.href = canvasImg.toDataURL('image/png');
+                        link.click();
+                    }
+                }, 'image/png');
+
+            } catch (error) {
+                console.error("Erreur lors de la génération de l'image :", error);
+                restartBtn.style.display = '';
+                shareImgBtn.style.display = '';
+                alert("Impossible de générer l'image sur cet appareil.");
+            }
         };
 
         canvas.addEventListener('mousedown', (e) => { isDrawing = true; scratch(e); });
