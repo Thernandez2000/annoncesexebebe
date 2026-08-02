@@ -82,6 +82,8 @@
             font-family: serif;
             padding: 10px;
             box-sizing: border-box;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .hidden-message .ligne-bebe {
@@ -226,12 +228,16 @@
             margin-top: 15px;
             padding-right: 5px;
         }
+        
+        /* CARTE DE MESSAGE DU LIVRE D'OR SÉCURISÉE CONTRE LES TEXTES LONGS */
         .message-item {
             background: #f9f6f0;
-            padding: 8px 10px;
+            padding: 10px 12px;
             border-radius: 8px;
             margin-bottom: 8px;
             font-size: 0.85rem;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
         .message-item strong {
             color: #5a4a42;
@@ -239,6 +245,8 @@
         .message-item p {
             margin: 4px 0 0 0;
             color: #7a685e;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
     </style>
 </head>
@@ -469,7 +477,7 @@
 
                         const heartDisplay = item.coeur ? '<span style="float: right; font-size: 1.1rem;">❤️</span>' : '';
                         const reponseDisplay = item.reponse ? `
-                            <div style="margin-top: 6px; padding: 6px 8px; background-color: #f3efe6; border-left: 3px solid #d1a878; border-radius: 4px; font-size: 0.8rem; color: #8c7355;">
+                            <div style="margin-top: 6px; padding: 6px 8px; background-color: #f3efe6; border-left: 3px solid #d1a878; border-radius: 4px; font-size: 0.8rem; color: #8c7355; word-break: break-word; overflow-wrap: break-word;">
                                 <strong>↳ Réponse :</strong> <i>${escapeHtml(item.reponse)}</i>
                             </div>
                         ` : '';
