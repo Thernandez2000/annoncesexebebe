@@ -30,25 +30,25 @@
            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
            color: #5a4a42;
            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          }
+        }
         .maintenance-box h2 {
           color: #d1a878;
           margin-top: 0;
         }
-       .maintenance-box p {
+        .maintenance-box p {
          font-size: 0.95rem;
          line-height: 1.4;
-       }
+        }
         
         body {
             margin: 0;
-            padding: 0;
+            padding: 30px 10px;
             background-color: #f5f0ea;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow-y: auto; /* Permet de scroller pour voir le livre d'or */
         }
 
         .card-container {
@@ -60,6 +60,7 @@
             background-size: contain;
             background-position: center;
             background-repeat: no-repeat;
+            flex-shrink: 0;
         }
 
         /* LE MESSAGE CACHÉ SUR 3 LIGNES + MOT DOUX */
@@ -165,12 +166,9 @@
             cursor: pointer;
             z-index: 10;
         }
-           /* LIVRE D'OR */
+
+        /* LIVRE D'OR */
         .guestbook-section {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
             width: 100%;
             max-width: 400px;
             background: white;
@@ -178,21 +176,22 @@
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             box-sizing: border-box;
-            margin-top: 20px;
+            margin-top: 25px;
+            margin-bottom: 30px;
             display: none; /* Caché au départ, s'affiche après le grattage */
             z-index: 5;
             text-align: left;
-          }
+        }
         .guestbook-section.visible {
             display: block;
-         }
-       .guestbook-section h3 {
+        }
+        .guestbook-section h3 {
             color: #d1a878;
             font-size: 1.1rem;
             margin-top: 0;
             text-align: center;
-       }
-       .guestbook-input {
+        }
+        .guestbook-input {
             width: 100%;
             padding: 10px;
             margin: 6px 0;
@@ -201,63 +200,61 @@
             font-size: 0.9rem;
             box-sizing: border-box;
             outline: none;
-         }
+        }
         textarea.guestbook-input {
-           resize: vertical;
-           height: 70px;
-     }
-    .guestbook-btn {
-          background-color: #d1a878;
-          color: white;
-          border: none;
-          padding: 10px;
-          border-radius: 8px;
-          cursor: pointer;
-          width: 100%;
-         font-weight: bold;
-         font-size: 0.9rem;
-         margin-top: 5px;
-     }
-    .guestbook-btn:hover {
-       background-color: #bc9363;
-      }
-    .messages-list {
-        max-height: 150px;
-        overflow-y: auto;
-        margin-top: 15px;
-       padding-right: 5px;
-    }
-    .message-item {
-        background: #f9f6f0;
-        padding: 8px 10px;
-       border-radius: 8px;
-       margin-bottom: 8px;
-       font-size: 0.85rem;
-   }
-   .message-item strong {
-        color: #5a4a42;
-  }
-   .message-item p {
-        margin: 4px 0 0 0;
-        color: #7a685e;
-   }
-        
+            resize: vertical;
+            height: 70px;
+        }
+        .guestbook-btn {
+            background-color: #d1a878;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .guestbook-btn:hover {
+            background-color: #bc9363;
+        }
+        .messages-list {
+            max-height: 180px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding-right: 5px;
+        }
+        .message-item {
+            background: #f9f6f0;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        .message-item strong {
+            color: #5a4a42;
+        }
+        .message-item p {
+            margin: 4px 0 0 0;
+            color: #7a685e;
+        }
     </style>
 </head>
 <body>
-    <!-- POP-UP DE MAINTENANCE (Actif) -->
     <!-- POP-UP DE MAINTENANCE AVEC ACCÈS ADMIN -->
-   <div id="maintenancePopup" class="maintenance-overlay">
-      <div class="maintenance-box">
-        <h2>🛠️ Site en maintenance</h2>
-        <p>Le site est temporairement indisponible pour quelques modifications. Revenez un peu plus tard ! ✨</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-        <p style="font-size: 0.85rem; color: #888;">Accès administrateur :</p>
-        <input type="password" id="adminPasswordInput" placeholder="Mot de passe admin" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; text-align: center; outline: none;">
-        <button onclick="checkAdminAccess()" style="background-color: #d1a878; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;">Entrer</button>
-        <p id="adminErrorMsg" style="color: red; font-size: 0.8rem; margin-top: 8px;"></p>
-     </div>
-  </div>
+    <div id="maintenancePopup" class="maintenance-overlay">
+       <div class="maintenance-box">
+         <h2>🛠️ Site en maintenance</h2>
+         <p>Le site est temporairement indisponible pour quelques modifications. Revenez un peu plus tard ! ✨</p>
+         <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+         <p style="font-size: 0.85rem; color: #888;">Accès administrateur :</p>
+         <input type="password" id="adminPasswordInput" placeholder="Mot de passe admin" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; text-align: center; outline: none;">
+         <button onclick="checkAdminAccess()" style="background-color: #d1a878; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;">Entrer</button>
+         <p id="adminErrorMsg" style="color: red; font-size: 0.8rem; margin-top: 8px;"></p>
+      </div>
+    </div>
 
     <div class="card-container">
         <!-- LE MESSAGE SECRET -->
@@ -276,7 +273,8 @@
 
         <a href="interface_amie.html" class="secret-admin-btn" title="Admin"></a>
     </div>
-    <!-- LIVRE D'OR -->
+
+    <!-- LIVRE D'OR (Placé proprement en dessous de la carte) -->
     <div id="guestbookSection" class="guestbook-section">
          <h3>Livre d'or 💌</h3>
          <p style="font-size: 0.8rem; color: #7a685e; text-align: center; margin-bottom: 10px;">Laisse un petit mot aux parents !</p>
@@ -285,13 +283,12 @@
          <textarea id="visitorMessage" class="guestbook-input" placeholder="Ton petit mot doux..."></textarea>
          <button class="guestbook-btn" onclick="postMessage()">Envoyer mon message ✨</button>
 
-     <div class="messages-list" id="messagesList">
-        <!-- Les messages s'afficheront ici en direct -->
+         <div class="messages-list" id="messagesList">
+             <!-- Les messages s'afficheront ici en direct -->
+         </div>
     </div>
-</div>
-    
 
-    <!-- AUDIO SYNTHÉTIQUE POUR LE GRATTAGE (Sons générés dynamiquement sans fichiers externes) -->
+    <!-- AUDIO SYNTHÉTIQUE -->
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -349,16 +346,15 @@
             isImageLoaded = true;
             initScratchLayer();
         };
+
         window.checkAdminAccess = function() {
-          const saisie = document.getElementById('adminPasswordInput').value;
-          // Tu peux changer "bebe2026" par le mot de passe de ton choix
-         if (saisie === "admin2000") {
-         document.getElementById('maintenancePopup').style.display = 'none';
-       } else {
-          document.getElementById('adminErrorMsg').innerText = "Mot de passe incorrect !";
-      }
-     };
-        
+            const saisie = document.getElementById('adminPasswordInput').value;
+            if (saisie === "admin2000") {
+                document.getElementById('maintenancePopup').style.display = 'none';
+            } else {
+                document.getElementById('adminErrorMsg').innerText = "Mot de passe incorrect !";
+            }
+        };
 
         window.initScratchLayer = function() {
             if (!isImageLoaded) return;
@@ -383,6 +379,7 @@
             canvas.style.opacity = '1';
             revealed = false;
             restartBtn.classList.remove('visible');
+            document.getElementById('guestbookSection').classList.remove('visible');
         }
 
         const annonceRef = ref(db, 'annonce');
@@ -429,63 +426,58 @@
             playScratchSound();
             checkProgress();
         }
-        // Fonction pour afficher le livre d'or après le grattage (à appeler ou lier)
-          window.showGuestbook = function() {
-          document.getElementById('guestbookSection').classList.add('visible');
-          loadMessages();
-       };
 
-       // Fonction pour envoyer un message dans Firebase
-       window.postMessage = function() {
-       const name = document.getElementById('visitorName').value.trim();
-       const message = document.getElementById('visitorMessage').value.trim();
+        window.showGuestbook = function() {
+            document.getElementById('guestbookSection').classList.add('visible');
+            loadMessages();
+        };
 
-       if (!name || !message) {
-          alert("Merci d'indiquer ton nom et ton message !");
-          return;
-      }
+        window.postMessage = function() {
+            const name = document.getElementById('visitorName').value.trim();
+            const message = document.getElementById('visitorMessage').value.trim();
 
-      const messagesRef = ref(db, 'livre_or');
-           push(messagesRef, {
-           name: name,
-           message: message,
-           date: Date.now()
-          }).then(() => {
-            document.getElementById('visitorMessage').value = '';
-            alert("Message envoyé avec succès ! 💖");
-         }).catch((error) => {
-           alert("Erreur lors de l'envoi.");
-         });
-     };
+            if (!name || !message) {
+                alert("Merci d'indiquer ton nom et ton message !");
+                return;
+            }
 
-// Fonction pour écouter et afficher les messages en direct
-function loadMessages() {
-    const messagesRef = query(ref(db, 'livre_or'), limitToLast(20)); // Garde les 20 derniers messages
-    onValue(messagesRef, (snapshot) => {
-        const listEl = document.getElementById('messagesList');
-        listEl.innerHTML = '';
-        
-        const data = snapshot.val();
-        if (data) {
-            // On convertit l'objet Firebase en tableau pour l'afficher du plus récent au plus ancien
-            const messagesArray = Object.values(data).reverse();
-            messagesArray.forEach((item) => {
-                const div = document.createElement('div');
-                div.className = 'message-item';
-                div.innerHTML = `<strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.message)}</p>`;
-                listEl.appendChild(div);
+            const messagesRef = ref(db, 'livre_or');
+            push(messagesRef, {
+                name: name,
+                message: message,
+                date: Date.now()
+            }).then(() => {
+                document.getElementById('visitorMessage').value = '';
+                alert("Message envoyé avec succès ! 💖");
+            }).catch((error) => {
+                alert("Erreur lors de l'envoi.");
             });
-        } else {
-            listEl.innerHTML = '<p style="font-size: 0.8rem; text-align: center; color: #aaa;">Soyez le premier à laisser un mot !</p>';
-        }
-    });
-}
+        };
 
-// Petite sécurité anti-injections HTML basique
-function escapeHtml(text) {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-        
+        function loadMessages() {
+            const messagesRef = query(ref(db, 'livre_or'), limitToLast(20));
+            onValue(messagesRef, (snapshot) => {
+                const listEl = document.getElementById('messagesList');
+                listEl.innerHTML = '';
+                
+                const data = snapshot.val();
+                if (data) {
+                    const messagesArray = Object.values(data).reverse();
+                    messagesArray.forEach((item) => {
+                        const div = document.createElement('div');
+                        div.className = 'message-item';
+                        div.innerHTML = `<strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.message)}</p>`;
+                        listEl.appendChild(div);
+                    });
+                } else {
+                    listEl.innerHTML = '<p style="font-size: 0.8rem; text-align: center; color: #aaa;">Soyez le premier à laisser un mot !</p>';
+                }
+            });
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
 
         function checkProgress() {
             if (revealed) return;
