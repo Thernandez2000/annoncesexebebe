@@ -462,11 +462,24 @@
                 
                 const data = snapshot.val();
                 if (data) {
-                    const messagesArray = Object.values(data).reverse();
-                    messagesArray.forEach((item) => {
+                    const messagesEntries = Object.entries(data).reverse();
+                    messagesEntries.forEach(([id, item]) => {
                         const div = document.createElement('div');
                         div.className = 'message-item';
-                        div.innerHTML = `<strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.message)}</p>`;
+
+                        const heartDisplay = item.coeur ? '<span style="float: right; font-size: 1.1rem;">❤️</span>' : '';
+                        const reponseDisplay = item.reponse ? `
+                            <div style="margin-top: 6px; padding: 6px 8px; background-color: #f3efe6; border-left: 3px solid #d1a878; border-radius: 4px; font-size: 0.8rem; color: #8c7355;">
+                                <strong>↳ Réponse :</strong> <i>${escapeHtml(item.reponse)}</i>
+                            </div>
+                        ` : '';
+
+                        div.innerHTML = `
+                            ${heartDisplay}
+                            <strong>${escapeHtml(item.name)}</strong>
+                            <p>${escapeHtml(item.message)}</p>
+                            ${reponseDisplay}
+                        `;
                         listEl.appendChild(div);
                     });
                 } else {
