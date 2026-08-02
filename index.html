@@ -426,7 +426,6 @@
 
                     mediaRecorder.onstop = async () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        // Conversion du blob audio en Base64 pour le stocker directement dans Firebase
                         const reader = new FileReader();
                         reader.readAsDataURL(audioBlob);
                         reader.onloadend = () => {
@@ -443,7 +442,6 @@
                 }
             } else if (mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
-                // Couper le flux du micro
                 mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 recordBtn.innerText = "🎤 Enregistrer un vocal";
                 recordBtn.classList.remove('recording');
@@ -561,8 +559,8 @@
 
             const messageData = {
                 name: name,
-                message: message || "(Message vocal 🎤)",
-                date: Date.now()
+                message: message || "(Message vocal)",
+                timestamp: Date.now()
             };
 
             if (recordedAudioBase64) {
@@ -571,82 +569,87 @@
 
             const messagesRef = ref(db, 'livre_or');
             push(messagesRef, messageData).then(() => {
+                document.getElementById('visitorName').value = '';
                 document.getElementById('visitorMessage').value = '';
                 cancelAudio();
-                alert("Message envoyé avec succès ! 💖");
-            }).catch((error) => {
-                alert("Erreur lors de l'envoi.");
+                alert("Message envoyé avec succès ! ✨");
+            }).catch(() => {
+                alert("Erreur lors de l'envoi du message.");
             });
         };
 
         function loadMessages() {
-            const messagesRef = query(ref(db, 'livre_or'), limitToLast(20));
+            const messagesRef = query(ref(db, 'livre_or'), limitToLast(50));
             onValue(messagesRef, (snapshot) => {
                 const listEl = document.getElementById('messagesList');
                 listEl.innerHTML = '';
                 
                 const data = snapshot.val();
                 if (data) {
-                    const messagesEntries = Object.entries(data).reverse();
-                    messagesEntries.forEach(([id, item]) => {
+                    const entries = Object.entries(data).reverse();
+                    entries.forEach(([id, item]) => {
                         const div = document.createElement('div');
                         div.className = 'message-item';
-
-                        const heartDisplay = item.coeur ? '<span style="float: right; font-size: 1.1rem;">❤️</span>' : '';
                         
-                        // Affichage du lecteur audio si un vocal est présent
+                        const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
                         const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
                         
-                        const reponseDisplay = item.reponse ? `
-                            <div style="margin-top: 6px; padding: 6px 8px; background-color: #f3efe6; border-left: 3px solid #d1a878; border-radius: 4px; font-size: 0.8rem; color: #8c7355; word-break: break-word; overflow-wrap: break-word;">
-                                <strong>↳ Réponse :</strong> <i>${escapeHtml(item.reponse)}</i>
-                            </div>
-                        ` : '';
+                        // Affichage de la réponse (texte et/ou vocal de la meilleure amie)
+                        let reponseHtml = '';
+                        if (item.reponse || item.reponseAudio) {
+                            const repText = item.reponse ? `<p style="margin: 4px 0 0 0;">${escapeHtml(item.reponse)}</p>` : '';
+                            const repAudio = item.reponseAudio ? `<audio controls src="${item.reponseAudio}" style="width: 100%; height: 30px; margin-top: 6px;"></audio>` : '';
+                            
+                            reponseHtml = `
+                                <div style="margin-top: 10px; padding: 10px; background-color: #f7f3ee; border-left: 3px solid #d1a878; border-radius: 6px; font-size: 0.9rem; color: #5a4a42;">
+                                    <strong style="color: #8c7355; font-size: 0.85rem;">Réponse :</strong>
+                                    ${repText}
+                                    ${repAudio}
+                                </div>
+                            `;
+                        }
 
                         div.innerHTML = `
                             ${heartDisplay}
                             <strong>${escapeHtml(item.name)}</strong>
                             <p>${escapeHtml(item.message)}</p>
                             ${audioDisplay}
-                            ${reponseDisplay}
+                            ${reponseHtml}
                         `;
                         listEl.appendChild(div);
                     });
                 } else {
-                    listEl.innerHTML = '<p style="font-size: 0.8rem; text-align: center; color: #aaa;">Soyez le premier à laisser un mot !</p>';
+                    listEl.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center;">Soyez le premier à laisser un mot !</p>';
                 }
             });
         }
 
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-
         function checkProgress() {
-            if (revealed) return;
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
             let transparentPixels = 0;
-            for (let i = 3; i < imageData.data.length; i += 4) {
-                if (imageData.data[i] < 10) transparentPixels++;
-            }
-            let percentage = (transparentPixels / (imageData.data.length / 4)) * 100;
             
-            if (percentage > 40) {
+            for (let i = 3; i < pixels.length; i += 4) {
+                if (pixels[i] < 128) {
+                    transparentPixels++;
+                }
+            }
+            
+            const totalPixels = pixels.length / 4;
+            const percentage = (transparentPixels / totalPixels) * 100;
+            
+            if (percentage > 45 && !revealed) {
                 revealed = true;
-                canvas.style.transition = 'opacity 0.8s ease';
                 canvas.style.opacity = '0';
-                setTimeout(() => { canvas.style.display = 'none'; }, 800);
-
-                playSuccessSound();
-                confetti({ 
-                    particleCount: 120, 
-                    spread: 80, 
-                    origin: { y: 0.7 }, 
-                    colors: confettiColors,
-                    shapes: ['circle', 'square']
-                });
-
+                canvas.style.pointerEvents = 'none';
                 restartBtn.classList.add('visible');
+                playSuccessSound();
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: confettiColors
+                });
                 showGuestbook();
             }
         }
@@ -656,11 +659,16 @@
         };
 
         canvas.addEventListener('mousedown', (e) => { isDrawing = true; scratch(e); });
-        canvas.addEventListener('mousemove', scratch);
+        window.addEventListener('mousemove', (e) => { if (isDrawing) scratch(e); });
         window.addEventListener('mouseup', () => { isDrawing = false; });
-        canvas.addEventListener('touchstart', (e) => { isDrawing = true; scratch(e); });
-        canvas.addEventListener('touchmove', scratch);
+
+        canvas.addEventListener('touchstart', (e) => { isDrawing = true; scratch(e); e.preventDefault(); });
+        window.addEventListener('touchmove', (e) => { if (isDrawing) scratch(e); e.preventDefault(); });
         window.addEventListener('touchend', () => { isDrawing = false; });
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
     </script>
 </body>
 </html>
