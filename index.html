@@ -129,6 +129,42 @@
             background-color: transparent;
         }
 
+        /* OVERLAY DU COMPTE À REBOURS */
+        .countdown-overlay {
+            position: absolute;
+            bottom: 11.5%;
+            left: 54.5%;
+            transform: translateX(-50%);
+            width: 195px;
+            height: 195px;
+            border-radius: 50%;
+            background-color: rgba(90, 74, 66, 0.92);
+            z-index: 4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: serif;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .countdown-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .countdown-number {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #d1a878;
+            animation: pulseNum 0.8s infinite alternate;
+        }
+        @keyframes pulseNum {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
         /* BOUTON RECOMMENCER */
         .restart-btn {
             position: absolute;
@@ -323,6 +359,12 @@
             <div class="ligne-mot-doux" id="textMotDoux"></div>
         </div>
 
+        <!-- COUCHE DU COMPTE À REBOURS -->
+        <div id="countdownOverlay" class="countdown-overlay">
+            <span style="font-size: 0.75rem; letter-spacing: 1px; color: #d1a878; margin-bottom: -5px;">RÉVÉLATION DANS</span>
+            <div id="countdownNumber" class="countdown-number">3</div>
+        </div>
+
         <!-- LA COUCHE À GRATTER -->
         <canvas id="scratchCanvas" class="scratch-canvas" width="195" height="195"></canvas>
 
@@ -374,6 +416,20 @@
             osc.stop(audioCtx.currentTime + 0.08);
         }
 
+        function playBeepSound(freq = 440) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
         function playSuccessSound() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const now = audioCtx.currentTime;
@@ -405,6 +461,7 @@
         const ctx = canvas.getContext('2d');
         const restartBtn = document.getElementById('restartBtn');
         let confettiColors = ['#ffc0cb', '#ff69b4', '#ffffff', '#d1a878'];
+        let countdownDuration = 3; // Par défaut à 3 secondes
 
         // VARIABLES POUR L'ENREGISTREMENT AUDIO
         let mediaRecorder;
@@ -494,6 +551,8 @@
             canvas.style.display = 'block';
             canvas.style.opacity = '1';
             revealed = false;
+            isCountingDown = false;
+            document.getElementById('countdownOverlay').classList.remove('visible');
             restartBtn.classList.remove('visible');
             document.getElementById('guestbookSection').classList.remove('visible');
         }
@@ -515,11 +574,17 @@
                 }
 
                 if (data.confettiColors) confettiColors = data.confettiColors;
+                
+                // Récupération de la durée du compte à rebours configurée par l'amie (défaut: 3)
+                if (data.countdownDuration !== undefined) {
+                    countdownDuration = parseInt(data.countdownDuration) || 3;
+                }
             }
         });
 
         let isDrawing = false;
         let revealed = false;
+        let isCountingDown = false;
 
         function getPosition(e) {
             const rect = canvas.getBoundingClientRect();
@@ -532,7 +597,7 @@
         }
 
         function scratch(e) {
-            if (!isDrawing || revealed) return;
+            if (!isDrawing || revealed || isCountingDown) return;
             const pos = getPosition(e);
             ctx.globalCompositeOperation = 'destination-out';
             ctx.beginPath();
@@ -594,7 +659,6 @@
                         const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
                         const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
                         
-                        // Affichage de la réponse (texte et/ou vocal de la meilleure amie)
                         let reponseHtml = '';
                         if (item.reponse || item.reponseAudio) {
                             const repText = item.reponse ? `<p style="margin: 4px 0 0 0;">${escapeHtml(item.reponse)}</p>` : '';
@@ -638,20 +702,43 @@
             const totalPixels = pixels.length / 4;
             const percentage = (transparentPixels / totalPixels) * 100;
             
-            if (percentage > 45 && !revealed) {
-                revealed = true;
-                canvas.style.opacity = '0';
-                canvas.style.pointerEvents = 'none';
-                restartBtn.classList.add('visible');
-                playSuccessSound();
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: confettiColors
-                });
-                showGuestbook();
+            if (percentage > 45 && !revealed && !isCountingDown) {
+                isCountingDown = true;
+                startCountdownAndReveal();
             }
+        }
+
+        function startCountdownAndReveal() {
+            canvas.style.pointerEvents = 'none';
+            const countdownOverlay = document.getElementById('countdownOverlay');
+            const countdownNumberEl = document.getElementById('countdownNumber');
+            
+            countdownOverlay.classList.add('visible');
+            let currentCount = countdownDuration;
+            countdownNumberEl.innerText = currentCount;
+            playBeepSound(400);
+
+            const timer = setInterval(() => {
+                currentCount--;
+                if (currentCount > 0) {
+                    countdownNumberEl.innerText = currentCount;
+                    playBeepSound(400);
+                } else {
+                    clearInterval(timer);
+                    countdownOverlay.classList.remove('visible');
+                    revealed = true;
+                    canvas.style.opacity = '0';
+                    restartBtn.classList.add('visible');
+                    playSuccessSound();
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: confettiColors
+                    });
+                    showGuestbook();
+                }
+            }, 1000);
         }
 
         window.resetScratch = function() {
