@@ -7,6 +7,39 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <style>
+        /* POP-UP DE MAINTENANCE */
+        .maintenance-overlay {
+           position: fixed;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+           background-color: rgba(90, 74, 66, 0.9);
+           display: flex;
+           justify-content: center;
+           align-items: center;
+           z-index: 9999;
+        }
+        .maintenance-box {
+           background: white;
+           padding: 30px;
+           border-radius: 20px;
+           text-align: center;
+           max-width: 320px;
+           width: 90%;
+           box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+           color: #5a4a42;
+           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          }
+        .maintenance-box h2 {
+          color: #d1a878;
+          margin-top: 0;
+        }
+       .maintenance-box p {
+         font-size: 0.95rem;
+         line-height: 1.4;
+       }
+        
         body {
             margin: 0;
             padding: 0;
@@ -135,6 +168,19 @@
     </style>
 </head>
 <body>
+    <!-- POP-UP DE MAINTENANCE (Actif) -->
+    <!-- POP-UP DE MAINTENANCE AVEC ACCÈS ADMIN -->
+   <div id="maintenancePopup" class="maintenance-overlay">
+      <div class="maintenance-box">
+        <h2>🛠️ Site en maintenance</h2>
+        <p>Le site est temporairement indisponible pour quelques modifications. Revenez un peu plus tard ! ✨</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        <p style="font-size: 0.85rem; color: #888;">Accès administrateur :</p>
+        <input type="password" id="adminPasswordInput" placeholder="Mot de passe admin" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; text-align: center; outline: none;">
+        <button onclick="checkAdminAccess()" style="background-color: #d1a878; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;">Entrer</button>
+        <p id="adminErrorMsg" style="color: red; font-size: 0.8rem; margin-top: 8px;"></p>
+     </div>
+  </div>
 
     <div class="card-container">
         <!-- LE MESSAGE SECRET -->
@@ -212,6 +258,16 @@
             isImageLoaded = true;
             initScratchLayer();
         };
+        window.checkAdminAccess = function() {
+          const saisie = document.getElementById('adminPasswordInput').value;
+          // Tu peux changer "bebe2026" par le mot de passe de ton choix
+         if (saisie === "bebe2026") {
+         document.getElementById('maintenancePopup').style.display = 'none';
+       } else {
+          document.getElementById('adminErrorMsg').innerText = "Mot de passe incorrect !";
+      }
+     };
+        
 
         window.initScratchLayer = function() {
             if (!isImageLoaded) return;
