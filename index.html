@@ -76,7 +76,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #e8ded2;
+            /* Fond texturé basé sur l'image principale pour camoufler le secret */
+            background-image: url('bebe.jpg');
+            background-size: 400px;
+            background-position: center;
+            background-repeat: no-repeat;
             z-index: 1;
             text-align: center;
             font-family: serif;
@@ -575,7 +579,6 @@
 
                 if (data.confettiColors) confettiColors = data.confettiColors;
                 
-                // Récupération de la durée du compte à rebours configurée par l'amie (défaut: 3)
                 if (data.countdownDuration !== undefined) {
                     countdownDuration = parseInt(data.countdownDuration) || 3;
                 }
