@@ -168,7 +168,6 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.75rem;
-            float: right;
             font-weight: bold;
             width: auto;
             margin: 0;
@@ -177,7 +176,7 @@
             background-color: #c9302c;
         }
 
-        /* DESIGN DU LIVRE POUR LE PDF (Simplifié pour éviter les bugs de rendu canvas) */
+        /* DESIGN DU LIVRE POUR LE PDF */
         .book-export-wrapper {
             background-color: #ffffff;
             border: 2px solid #d1a878;
@@ -264,7 +263,7 @@
     <!-- SECTION ADMINISTRATION DU LIVRE D'OR -->
     <div id="adminModSection" class="mod-section hidden">
         <h3>📖 Modération du Livre d'or</h3>
-        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages et supprimez ceux si besoin.</p>
+        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages, ajoutez des cœurs, répondez ou supprimez.</p>
         
         <button class="btn-pdf" onclick="downloadBookPDF()">📥 Télécharger le Livre d'or en PDF</button>
 
@@ -358,8 +357,6 @@
         }
 
         window.saveMotDoux = function() {
-            const motDoux = document.getElementById('motDouxInput5').value; // Correction input ID si besoin
-            // (Laissé à l'identique avec ton ID d'origine) :
             const motDouxReel = document.getElementById('motDouxInput').value;
             const annonceRef = ref(db, 'annonce');
             
@@ -383,10 +380,19 @@
                     messagesEntries.forEach(([id, item]) => {
                         const div = document.createElement('div');
                         div.className = 'mod-message-item';
+                        
+                        const hasHeart = item.coeur ? true : false;
+                        const heartIcon = hasHeart ? '❤️' : '🤍';
+
                         div.innerHTML = `
-                            <button class="mod-delete-btn" onclick="deleteAdminMessage('${id}')">Supprimer 🗑️</button>
+                            <div style="float: right;">
+                                <button onclick="toggleHeart('${id}', ${hasHeart})" style="background:none; border:none; cursor:pointer; font-size:1.1rem; padding:0 3px;" title="Mettre un cœur">${heartIcon}</button>
+                                <button onclick="repondreMessage('${id}')" style="background:none; border:none; cursor:pointer; font-size:1.1rem; padding:0 3px;" title="Répondre">💬</button>
+                                <button class="mod-delete-btn" onclick="deleteAdminMessage('${id}')" style="margin-left: 5px;">Supprimer 🗑️</button>
+                            </div>
                             <strong>${escapeHtml(item.name)}</strong>
                             <p>${escapeHtml(item.message)}</p>
+                            ${item.reponse ? `<div style="margin-top: 8px; padding-left: 8px; border-left: 3px solid #d1a878; color: #8c7355; font-size: 0.85rem; font-style: italic;">↳ ${escapeHtml(item.reponse)}</div>` : ''}
                         `;
                         listEl.appendChild(div);
                     });
@@ -395,6 +401,21 @@
                 }
             });
         }
+
+        // Mettre ou enlever un cœur depuis l'interface amie
+        window.toggleHeart = function(messageId, currentStatus) {
+            const msgRef = ref(db, 'livre_or/' + messageId);
+            update(msgRef, { coeur: !currentStatus });
+        };
+
+        // Répondre à un message depuis l'interface amie
+        window.repondreMessage = function(messageId) {
+            const reponse = prompt("Écris ta réponse à ce message :");
+            if (reponse !== null && reponse.trim() !== "") {
+                const msgRef = ref(db, 'livre_or/' + messageId);
+                update(msgRef, { reponse: reponse.trim() });
+            }
+        };
 
         window.deleteAdminMessage = function(messageId) {
             if (confirm("Veux-tu vraiment supprimer ce message ?")) {
@@ -415,7 +436,6 @@
                     return;
                 }
 
-                // Création d'un conteneur temporaire propre
                 const exportContainer = document.createElement('div');
                 exportContainer.className = 'book-export-wrapper';
                 
@@ -427,18 +447,25 @@
 
                 const messagesArray = Object.values(data).reverse();
                 messagesArray.forEach((item) => {
+                    const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
+                    const reponseDisplay = item.reponse ? `
+                        <div style="margin-top: 8px; padding: 8px; background-color: #f5f0ea; border-left: 3px solid #d1a878; font-size: 12px; color: #8c7355; font-style: italic;">
+                            <strong>↳ Réponse :</strong> ${escapeHtml(item.reponse)}
+                        </div>
+                    ` : '';
+
                     htmlContent += `
                         <div class="book-message-card">
+                            ${heartDisplay}
                             <strong>${escapeHtml(item.name)}</strong>
                             <p>${escapeHtml(item.message)}</p>
+                            ${reponseDisplay}
                         </div>
                     `;
                 });
 
                 exportContainer.innerHTML = htmlContent;
                 
-                // Intégration dans le DOM de manière visible mais masquée proprement par opacité/z-index 
-                // pour que html2canvas puisse calculer les dimensions de rendu sans bugger.
                 exportContainer.style.position = 'fixed';
                 exportContainer.style.left = '0';
                 exportContainer.style.top = '0';
