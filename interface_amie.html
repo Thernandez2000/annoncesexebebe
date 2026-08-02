@@ -359,48 +359,10 @@
     <!-- IMPORT CONFIG -->
     <script src="secrets.js"></script>
 
-    <!-- IMPORT FIREBASE -->
+    <!-- IMPORT FIREBASE & LOGIQUE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, remove, get, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, remove, get, query, limitToLast, onDisconnect, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-// ... (ton initialisation d'application Firebase et config existante)
-
-function loadVisitorStats() {
-    const statsRef = ref(db, 'stats/visiteurs');
-    
-    // 1. Affichage en direct du nombre de visiteurs
-    onValue(statsRef, (snapshot) => {
-        const count = snapshot.val() || 0;
-        document.getElementById('visitorCountDisplay').innerText = count;
-    });
-
-    // 2. Enregistrement propre de la présence de l'utilisateur connecté
-    const connectedRef = ref(db, ".info/connected");
-    const presenceRef = ref(db, 'stats/visiteurs_actifs'); // Sous-dossier pour gérer les sessions uniques
-
-    onValue(connectedRef, (snap) => {
-        if (snap.val() === true) {
-            // On crée une référence unique pour cet onglet/navigateur
-            const myPresenceRef = push(presenceRef);
-            
-            // Quand l'onglet se ferme ou se déconnecte, on supprime cette entrée
-            onDisconnect(myPresenceRef).remove();
-            
-            // On l'ajoute maintenant
-            set(myPresenceRef, true).then(() => {
-                // Optionnel : Mettre à jour un compteur global basé sur le nombre d'enfants actifs
-                onValue(presenceRef, (presenceSnap) => {
-                    const activeCount = presenceSnap.size || 0;
-                    set(statsRef, activeCount); // Met à jour le total affiché en temps réel
-                }, { onlyOnce: true });
-            });
-        }
-    });
-}
-
+        import { getDatabase, ref, set, onValue, update, remove, get, query, limitToLast, onDisconnect, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app, databaseURL);
@@ -414,8 +376,14 @@ function loadVisitorStats() {
         let activeRecordingMessageId = null;
 
         window.checkPassword = function() {
-            const saisie = document.getElementById('passwordInput').value;
+            const inputElement = document.getElementById('passwordInput');
+            const errorElement = document.getElementById('errorMsg');
+            
+            if (!inputElement || !errorElement) return;
+
+            const saisie = inputElement.value;
             if (saisie === MOT_DE_PASSE_SECRET) {
+                errorElement.innerText = "";
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('adminInterface').classList.remove('hidden');
                 document.getElementById('adminModSection').classList.remove('hidden');
@@ -423,7 +391,7 @@ function loadVisitorStats() {
                 loadVisitorStats();
                 loadAdminMessages();
             } else {
-                document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";
+                errorElement.innerText = "Mot de passe incorrect !";
             }
         };
 
@@ -447,11 +415,32 @@ function loadVisitorStats() {
         }
 
         function loadVisitorStats() {
-            // Écoute du nombre de connexions / visiteurs connectés (si géré via presence ou compteur)
             const statsRef = ref(db, 'stats/visiteurs');
+            
+            // 1. Affichage en direct du nombre de visiteurs
             onValue(statsRef, (snapshot) => {
                 const count = snapshot.val() || 0;
-                document.getElementById('visitorCountDisplay').innerText = count;
+                const displayEl = document.getElementById('visitorCountDisplay');
+                if (displayEl) displayEl.innerText = count;
+            });
+
+            // 2. Enregistrement de la présence active
+            const connectedRef = ref(db, ".info/connected");
+            const presenceRef = ref(db, 'stats/visiteurs_actifs');
+
+            onValue(connectedRef, (snap) => {
+                if (snap.val() === true) {
+                    const myPresenceRef = push(presenceRef);
+                    onDisconnect(myPresenceRef).remove();
+                    
+                    set(myPresenceRef, true).then(() => {
+                        onValue(presenceRef, (presenceSnap) => {
+                            let activeCount = 0;
+                            presenceSnap.forEach(() => { activeCount++; });
+                            set(statsRef, activeCount);
+                        }, { onlyOnce: true });
+                    });
+                }
             });
         }
 
@@ -609,7 +598,6 @@ function loadVisitorStats() {
             box.classList.toggle('active');
         };
 
-        // Enregistrement vocal pour la réponse admin
         window.toggleAdminRecording = async function(messageId) {
             const micBtn = document.getElementById(`adminMicBtn_${messageId}`);
             const statusSpan = document.getElementById(`adminAudioStatus_${messageId}`);
