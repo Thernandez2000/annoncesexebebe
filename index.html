@@ -644,6 +644,7 @@
         const shareImgBtn = document.getElementById('shareImgBtn');
         let confettiColors = ['#ffc0cb', '#ff69b4', '#ffffff', '#d1a878'];
         let countdownDuration = 3; // Par défaut à 3 secondes
+        let showCountdownSetting = true; // Activé par défaut
 
         // Gestion du compteur de visites unique (via localStorage pour ne compter qu'une fois par appareil)
         const statsRef = ref(db, 'stats');
@@ -652,13 +653,25 @@
             localStorage.setItem('has_visited', 'true');
         }
 
-        // Écouter en temps réel le mode "Révélation en direct" déclenché depuis l'admin
+        // Écouter en temps réel les contrôles admin (compte à rebours + force reveal)
         const controlRef = ref(db, 'controle');
         onValue(controlRef, (snapshot) => {
             const data = snapshot.val();
-            if (data && data.forceReveal && !revealed && !isCountingDown) {
-                isCountingDown = true;
-                startCountdownAndReveal();
+            if (data) {
+                // Récupération de la décision Oui/Non pour le compte à rebours (true par défaut)
+                if (data.showCountdown !== undefined) {
+                    showCountdownSetting = data.showCountdown === true;
+                }
+
+                // Force reveal
+                if (data.forceReveal && !revealed && !isCountingDown) {
+                    isCountingDown = true;
+                    if (showCountdownSetting) {
+                        startCountdownAndReveal();
+                    } else {
+                        executeImmediateReveal();
+                    }
+                }
             }
         });
 
@@ -873,8 +886,6 @@
 
             const messagesRef = ref(db, 'livre_or');
             push(messagesRef, messageData).then((newRef) => {
-                // Si le message est privé, on sauvegarde son ID unique en local sur cet appareil 
-                // pour que l'auteur puisse continuer à le voir lui-même avec les réponses.
                 if (isPrivate) {
                     let myPrivateIds = JSON.parse(localStorage.getItem('my_private_msgs') || '[]');
                     myPrivateIds.push(newRef.key);
@@ -900,7 +911,6 @@
                 const data = snapshot.val();
                 let displayedCount = 0;
 
-                // Récupère les IDs des messages privés postés depuis cet appareil précis
                 let myPrivateIds = JSON.parse(localStorage.getItem('my_private_msgs') || '[]');
 
                 if (data) {
@@ -908,7 +918,6 @@
                     entries.forEach(([id, item]) => {
                         const isMyPrivateMessage = item.prive === true && myPrivateIds.includes(id);
 
-                        // On affiche le message s'il est public OU s'il s'agit du message privé de cet appareil
                         if (item.prive === true && !isMyPrivateMessage) return;
 
                         displayedCount++;
@@ -968,7 +977,13 @@
             if (percentage > 45 && !revealed && !isCountingDown) {
                 isCountingDown = true;
                 update(statsRef, { grattages: increment(1) });
-                startCountdownAndReveal();
+                
+                // DÉCISION ICI : Si l'admin a activé le compte à rebours (OUI), on l'affiche. Sinon (NON), on révèle direct.
+                if (showCountdownSetting) {
+                    startCountdownAndReveal();
+                } else {
+                    executeImmediateReveal();
+                }
             }
         }
 
@@ -990,20 +1005,25 @@
                 } else {
                     clearInterval(timer);
                     countdownOverlay.classList.remove('visible');
-                    revealed = true;
-                    canvas.style.opacity = '0';
-                    restartBtn.classList.add('visible');
-                    shareImgBtn.classList.add('visible');
-                    playSuccessSound();
-                    confetti({
-                        particleCount: 100,
-                        spread: 70,
-                        origin: { y: 0.6 },
-                        colors: confettiColors
-                    });
-                    showGuestbook();
+                    executeImmediateReveal();
                 }
             }, 1000);
+        }
+
+        function executeImmediateReveal() {
+            revealed = true;
+            canvas.style.opacity = '0';
+            canvas.style.pointerEvents = 'none';
+            restartBtn.classList.add('visible');
+            shareImgBtn.classList.add('visible');
+            playSuccessSound();
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: confettiColors
+            });
+            showGuestbook();
         }
 
         window.resetScratch = function() {
