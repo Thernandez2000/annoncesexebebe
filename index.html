@@ -76,7 +76,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #f7f3ee; /* Fond uni assorti au papier de la carte */
+            background-color: #e8ded2;
             z-index: 1;
             text-align: center;
             font-family: serif;
@@ -575,6 +575,7 @@
 
                 if (data.confettiColors) confettiColors = data.confettiColors;
                 
+                // Récupération de la durée du compte à rebours configurée par l'amie (défaut: 3)
                 if (data.countdownDuration !== undefined) {
                     countdownDuration = parseInt(data.countdownDuration) || 3;
                 }
