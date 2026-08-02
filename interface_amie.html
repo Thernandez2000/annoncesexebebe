@@ -177,50 +177,42 @@
             background-color: #c9302c;
         }
 
-        /* DESIGN DU LIVRE POUR LE PDF */
+        /* DESIGN DU LIVRE POUR LE PDF (Simplifié pour éviter les bugs de rendu canvas) */
         .book-export-wrapper {
-            background-color: #fdfbf7;
-            background-image: radial-gradient(#e8dfd8 0.75px, transparent 0.75px);
-            background-size: 15px 15px;
-            border: 5px solid #d1a878;
-            border-radius: 15px;
-            padding: 40px;
-            font-family: 'Georgia', serif;
+            background-color: #ffffff;
+            border: 2px solid #d1a878;
+            padding: 30px;
+            font-family: Arial, sans-serif;
             color: #5a4a42;
-            width: 700px;
+            width: 800px;
             box-sizing: border-box;
         }
         .book-page-title {
             text-align: center;
             color: #8c7355;
-            font-size: 2rem;
+            font-size: 24px;
             margin-bottom: 5px;
-            font-weight: normal;
         }
         .book-page-subtitle {
             text-align: center;
-            font-size: 1rem;
+            font-size: 14px;
             color: #9c887d;
-            margin-bottom: 30px;
-            font-style: italic;
+            margin-bottom: 20px;
         }
         .book-message-card {
-            background: #ffffff;
+            background: #fdfbf7;
             border-left: 4px solid #d1a878;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            padding: 12px;
+            margin-bottom: 12px;
         }
         .book-message-card strong {
             color: #5a4a42;
-            font-size: 1.1rem;
+            font-size: 14px;
         }
         .book-message-card p {
-            margin: 8px 0 0 0;
+            margin: 5px 0 0 0;
             color: #7a685e;
-            font-size: 1rem;
-            line-height: 1.4;
+            font-size: 13px;
         }
         .btn-pdf {
             background-color: #8c7355;
@@ -269,7 +261,7 @@
         <a href="index.html" style="font-size: 0.9rem; color: #888; text-decoration: none;">← Retourner à la carte</a>
     </div>
 
-    <!-- SECTION ADMINISTRATION DU LIVRE D'OR (Visible après connexion) -->
+    <!-- SECTION ADMINISTRATION DU LIVRE D'OR -->
     <div id="adminModSection" class="mod-section hidden">
         <h3>📖 Modération du Livre d'or</h3>
         <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages et supprimez ceux si besoin.</p>
@@ -366,10 +358,12 @@
         }
 
         window.saveMotDoux = function() {
-            const motDoux = document.getElementById('motDouxInput').value;
+            const motDoux = document.getElementById('motDouxInput5').value; // Correction input ID si besoin
+            // (Laissé à l'identique avec ton ID d'origine) :
+            const motDouxReel = document.getElementById('motDouxInput').value;
             const annonceRef = ref(db, 'annonce');
             
-            update(annonceRef, { ligneMotDoux: motDoux }).then(() => {
+            update(annonceRef, { ligneMotDoux: motDouxReel }).then(() => {
                 showNotification("Mot doux mis à jour ! 💌");
                 loadLiveStatus();
             }).catch((error) => {
@@ -421,13 +415,14 @@
                     return;
                 }
 
+                // Création d'un conteneur temporaire propre
                 const exportContainer = document.createElement('div');
                 exportContainer.className = 'book-export-wrapper';
                 
                 let htmlContent = `
-                    <h1 class="book-page-title">📖 Livre d'Or de Bébé</h1>
+                    <h1 class="book-page-title">Livre d'Or de Bébé</h1>
                     <div class="book-page-subtitle">Les doux mots de nos proches et de notre famille</div>
-                    <hr style="border: 0; border-top: 1px solid #d1a878; margin-bottom: 30px;">
+                    <hr style="border: 0; border-top: 1px solid #d1a878; margin-bottom: 20px;">
                 `;
 
                 const messagesArray = Object.values(data).reverse();
@@ -442,16 +437,20 @@
 
                 exportContainer.innerHTML = htmlContent;
                 
-                exportContainer.style.position = 'absolute';
+                // Intégration dans le DOM de manière visible mais masquée proprement par opacité/z-index 
+                // pour que html2canvas puisse calculer les dimensions de rendu sans bugger.
+                exportContainer.style.position = 'fixed';
                 exportContainer.style.left = '0';
-                exportContainer.style.top = '-99999px';
+                exportContainer.style.top = '0';
+                exportContainer.style.zIndex = '-9999';
+                exportContainer.style.opacity = '0';
                 document.body.appendChild(exportContainer);
 
                 const options = {
                     margin:       10,
                     filename:     'Livre_d_or_bebe.pdf',
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true },
+                    html2canvas:  { scale: 1, useCORS: true, logging: true },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
@@ -459,7 +458,9 @@
                     document.body.removeChild(exportContainer);
                 }).catch(err => {
                     console.error(err);
-                    document.body.removeChild(exportContainer);
+                    if (document.body.contains(exportContainer)) {
+                        document.body.removeChild(exportContainer);
+                    }
                     alert("Une erreur est survenue lors de la génération du PDF.");
                 });
             }).catch((error) => {
