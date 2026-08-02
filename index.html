@@ -872,11 +872,20 @@
             }
 
             const messagesRef = ref(db, 'livre_or');
-            push(messagesRef, messageData).then(() => {
+            push(messagesRef, messageData).then((newRef) => {
+                // Si le message est privé, on sauvegarde son ID unique en local sur cet appareil 
+                // pour que l'auteur puisse continuer à le voir lui-même avec les réponses.
+                if (isPrivate) {
+                    let myPrivateIds = JSON.parse(localStorage.getItem('my_private_msgs') || '[]');
+                    myPrivateIds.push(newRef.key);
+                    localStorage.setItem('my_private_msgs', JSON.stringify(myPrivateIds));
+                }
+
                 document.getElementById('visitorName').value = '';
                 document.getElementById('visitorMessage').value = '';
                 cancelAudio();
                 alert(isPrivate ? "Message privé bien envoyé aux parents ! 🔒" : "Message public posté avec succès ! ✨");
+                loadMessages();
             }).catch(() => {
                 alert("Erreur lors de l'envoi du message.");
             });
@@ -889,20 +898,26 @@
                 listEl.innerHTML = '';
                 
                 const data = snapshot.val();
-                let hasPublicMessages = false;
+                let displayedCount = 0;
+
+                // Récupère les IDs des messages privés postés depuis cet appareil précis
+                let myPrivateIds = JSON.parse(localStorage.getItem('my_private_msgs') || '[]');
 
                 if (data) {
                     const entries = Object.entries(data).reverse();
                     entries.forEach(([id, item]) => {
-                        // On n'affiche dans le flux public que les messages qui ne sont pas privés
-                        if (item.prive === true) return;
+                        const isMyPrivateMessage = item.prive === true && myPrivateIds.includes(id);
 
-                        hasPublicMessages = true;
+                        // On affiche le message s'il est public OU s'il s'agit du message privé de cet appareil
+                        if (item.prive === true && !isMyPrivateMessage) return;
+
+                        displayedCount++;
                         const div = document.createElement('div');
                         div.className = 'message-item';
                         
                         const heartDisplay = item.coeur ? '<span style="float: right; color: #e74c3c;">❤️</span>' : '';
                         const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
+                        const privateBadge = isMyPrivateMessage ? '<span style="font-size: 0.75rem; background: #e8ded2; padding: 2px 6px; border-radius: 4px; float: right; margin-right: 5px; color: #5a4a42;">🔒 Privé (ton message)</span>' : '';
                         
                         let reponseHtml = '';
                         if (item.reponse || item.reponseAudio) {
@@ -911,7 +926,7 @@
                             
                             reponseHtml = `
                                 <div style="margin-top: 10px; padding: 10px; background-color: #f7f3ee; border-left: 3px solid #d1a878; border-radius: 6px; font-size: 0.9rem; color: #5a4a42;">
-                                    <strong style="color: #8c7355; font-size: 0.85rem;">Réponse :</strong>
+                                    <strong style="color: #8c7355; font-size: 0.85rem;">Réponse de la meilleure amie :</strong>
                                     ${repText}
                                     ${repAudio}
                                 </div>
@@ -920,6 +935,7 @@
 
                         div.innerHTML = `
                             ${heartDisplay}
+                            ${privateBadge}
                             <strong>${escapeHtml(item.name)}</strong>
                             <p>${escapeHtml(item.message)}</p>
                             ${audioDisplay}
@@ -929,8 +945,8 @@
                     });
                 } 
                 
-                if (!hasPublicMessages) {
-                    listEl.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center;">Soyez le premier à laisser un mot public !</p>';
+                if (displayedCount === 0) {
+                    listEl.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center;">Soyez le premier à laisser un mot !</p>';
                 }
             });
         }
