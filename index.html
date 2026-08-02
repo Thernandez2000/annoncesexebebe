@@ -235,6 +235,69 @@
             z-index: 10;
         }
 
+        /* GALERIE PHOTO */
+        .gallery-section {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            margin-top: 55px;
+            margin-bottom: 20px;
+            display: none;
+            z-index: 5;
+            text-align: left;
+        }
+        .gallery-section.visible {
+            display: block;
+        }
+        .gallery-section h3 {
+            color: #d1a878;
+            font-size: 1.1rem;
+            margin-top: 0;
+            text-align: center;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .gallery-item {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #f5f0ea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: filter 0.3s ease;
+        }
+        .gallery-item.private img {
+            filter: blur(8px);
+        }
+        .lock-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(90, 74, 66, 0.2);
+            font-size: 1.5rem;
+            z-index: 2;
+        }
+
         /* LIVRE D'OR */
         .guestbook-section {
             width: 100%;
@@ -244,7 +307,7 @@
             border-radius: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             box-sizing: border-box;
-            margin-top: 55px; /* Légèrement augmenté pour laisser la place au bouton de partage */
+            margin-top: 20px;
             margin-bottom: 30px;
             display: none;
             z-index: 5;
@@ -396,6 +459,15 @@
         <a href="interface_amie.html" class="secret-admin-btn" title="Admin"></a>
     </div>
 
+    <!-- GALERIE PHOTO -->
+    <div id="gallerySection" class="gallery-section">
+         <h3>Galerie 📸</h3>
+         <p style="font-size: 0.8rem; color: #7a685e; text-align: center; margin-bottom: 10px;">Les souvenirs partagés en direct !</p>
+         <div class="gallery-grid" id="galleryGrid">
+             <!-- Les photos s'afficheront ici en direct -->
+         </div>
+    </div>
+
     <!-- LIVRE D'OR -->
     <div id="guestbookSection" class="guestbook-section">
          <h3>Livre d'or 💌</h3>
@@ -503,6 +575,34 @@
             }
         });
 
+        // CHARGEMENT EN TEMPS RÉEL DE LA GALERIE PHOTO
+        const galleryRef = ref(db, 'galerie');
+        onValue(galleryRef, (snapshot) => {
+            const galleryGrid = document.getElementById('galleryGrid');
+            galleryGrid.innerHTML = '';
+            
+            const data = snapshot.val();
+            if (data) {
+                const photos = Object.entries(data).reverse(); // Les plus récentes en premier
+                photos.forEach(([id, photo]) => {
+                    const isPrivate = photo.prive === true;
+                    
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = `gallery-item ${isPrivate ? 'private' : ''}`;
+                    
+                    let lockHtml = isPrivate ? '<div class="lock-overlay">🔒</div>' : '';
+                    
+                    itemDiv.innerHTML = `
+                        <img src="${photo.url || photo.image}" alt="Souvenir de galerie">
+                        ${lockHtml}
+                    `;
+                    galleryGrid.appendChild(itemDiv);
+                });
+            } else {
+                galleryGrid.innerHTML = '<p style="font-size: 0.85rem; color: #aaa; text-align: center; grid-column: span 2;">Aucune photo pour le moment.</p>';
+            }
+        });
+
         // VARIABLES POUR L'ENREGISTREMENT AUDIO
         let mediaRecorder;
         let audioChunks = [];
@@ -596,6 +696,7 @@
             document.getElementById('countdownOverlay').classList.remove('visible');
             restartBtn.classList.remove('visible');
             shareImgBtn.classList.remove('visible');
+            document.getElementById('gallerySection').classList.remove('visible');
             document.getElementById('guestbookSection').classList.remove('visible');
         }
 
@@ -649,7 +750,8 @@
             checkProgress();
         }
 
-        window.showGuestbook = function() {
+        window.showGalleryAndGuestbook = function() {
+            document.getElementById('gallerySection').classList.add('visible');
             document.getElementById('guestbookSection').classList.add('visible');
             loadMessages();
         };
@@ -745,7 +847,6 @@
             
             if (percentage > 45 && !revealed && !isCountingDown) {
                 isCountingDown = true;
-                // Incrémenter le compteur de grattages dans Firebase
                 update(statsRef, { grattages: increment(1) });
                 startCountdownAndReveal();
             }
@@ -780,7 +881,7 @@
                         origin: { y: 0.6 },
                         colors: confettiColors
                     });
-                    showGuestbook();
+                    showGalleryAndGuestbook();
                 }
             }, 1000);
         }
@@ -789,13 +890,11 @@
             initScratchLayer();
         };
 
-        // FONCTION DE PARTAGE EN IMAGE AVEC HTML2CANVAS
         window.shareRevealImage = async function() {
             const targetElement = document.getElementById('cardContainer');
             if (!targetElement) return;
 
             try {
-                // Masque temporairement les boutons "Recommencer" et "Partager" pour qu'ils n'apparaissent pas sur l'image générée
                 restartBtn.style.display = 'none';
                 shareImgBtn.style.display = 'none';
 
@@ -804,7 +903,6 @@
                     useCORS: true 
                 });
 
-                // Remet les boutons en place
                 restartBtn.style.display = '';
                 shareImgBtn.style.display = '';
 
@@ -823,7 +921,6 @@
                             console.log("Partage annulé", error);
                         }
                     } else {
-                        // Repli PC : téléchargement direct de l'image
                         const link = document.createElement('a');
                         link.download = 'Annonce_Bebe.png';
                         link.href = canvasImg.toDataURL('image/png');
