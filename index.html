@@ -235,8 +235,8 @@
             z-index: 10;
         }
 
-        /* GALERIE PHOTO */
-        .gallery-section {
+        /* LIVRE D'OR */
+        .guestbook-section {
             width: 100%;
             max-width: 400px;
             background: white;
@@ -250,8 +250,58 @@
             z-index: 5;
             text-align: left;
         }
-        .gallery-section.visible {
+        .guestbook-section.visible {
             display: block;
+        }
+        .guestbook-section h3 {
+            color: #d1a878;
+            font-size: 1.1rem;
+            margin-top: 0;
+            text-align: center;
+        }
+        .guestbook-input {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+        textarea.guestbook-input {
+            resize: vertical;
+            height: 60px;
+        }
+        .guestbook-btn {
+            background-color: #d1a878;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .guestbook-btn:hover {
+            background-color: #bc9363;
+        }
+
+        /* GALERIE PHOTO */
+        .gallery-section {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            margin-top: 10px;
+            margin-bottom: 30px;
+            z-index: 5;
+            text-align: left;
         }
         .gallery-section h3 {
             color: #d1a878;
@@ -296,60 +346,6 @@
             background-color: rgba(90, 74, 66, 0.2);
             font-size: 1.5rem;
             z-index: 2;
-        }
-
-        /* LIVRE D'OR */
-        .guestbook-section {
-            width: 100%;
-            max-width: 400px;
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            box-sizing: border-box;
-            margin-top: 20px;
-            margin-bottom: 30px;
-            display: none;
-            z-index: 5;
-            text-align: left;
-        }
-        .guestbook-section.visible {
-            display: block;
-        }
-        .guestbook-section h3 {
-            color: #d1a878;
-            font-size: 1.1rem;
-            margin-top: 0;
-            text-align: center;
-        }
-        .guestbook-input {
-            width: 100%;
-            padding: 10px;
-            margin: 6px 0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            box-sizing: border-box;
-            outline: none;
-        }
-        textarea.guestbook-input {
-            resize: vertical;
-            height: 60px;
-        }
-        .guestbook-btn {
-            background-color: #d1a878;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
-            font-size: 0.9rem;
-            margin-top: 5px;
-        }
-        .guestbook-btn:hover {
-            background-color: #bc9363;
         }
 
         /* STYLES POUR L'ENREGISTREUR VOCAL */
@@ -459,15 +455,6 @@
         <a href="interface_amie.html" class="secret-admin-btn" title="Admin"></a>
     </div>
 
-    <!-- GALERIE PHOTO -->
-    <div id="gallerySection" class="gallery-section">
-         <h3>Galerie 📸</h3>
-         <p style="font-size: 0.8rem; color: #7a685e; text-align: center; margin-bottom: 10px;">Les souvenirs partagés en direct !</p>
-         <div class="gallery-grid" id="galleryGrid">
-             <!-- Les photos s'afficheront ici en direct -->
-         </div>
-    </div>
-
     <!-- LIVRE D'OR -->
     <div id="guestbookSection" class="guestbook-section">
          <h3>Livre d'or 💌</h3>
@@ -489,6 +476,15 @@
 
          <div class="messages-list" id="messagesList">
              <!-- Les messages s'afficheront ici en direct -->
+         </div>
+    </div>
+
+    <!-- GALERIE PHOTO (Toujours visible sans grattage) -->
+    <div id="gallerySection" class="gallery-section">
+         <h3>Galerie 📸</h3>
+         <p style="font-size: 0.8rem; color: #7a685e; text-align: center; margin-bottom: 10px;">Les souvenirs partagés en direct !</p>
+         <div class="gallery-grid" id="galleryGrid">
+             <!-- Les photos s'afficheront ici en direct -->
          </div>
     </div>
 
@@ -575,7 +571,7 @@
             }
         });
 
-        // CHARGEMENT EN TEMPS RÉEL DE LA GALERIE PHOTO
+        // CHARGEMENT EN TEMPS RÉEL DE LA GALERIE PHOTO (Toujours actif et visible)
         const galleryRef = ref(db, 'galerie');
         onValue(galleryRef, (snapshot) => {
             const galleryGrid = document.getElementById('galleryGrid');
@@ -696,7 +692,6 @@
             document.getElementById('countdownOverlay').classList.remove('visible');
             restartBtn.classList.remove('visible');
             shareImgBtn.classList.remove('visible');
-            document.getElementById('gallerySection').classList.remove('visible');
             document.getElementById('guestbookSection').classList.remove('visible');
         }
 
@@ -750,8 +745,7 @@
             checkProgress();
         }
 
-        window.showGalleryAndGuestbook = function() {
-            document.getElementById('gallerySection').classList.add('visible');
+        window.showGuestbook = function() {
             document.getElementById('guestbookSection').classList.add('visible');
             loadMessages();
         };
@@ -881,7 +875,7 @@
                         origin: { y: 0.6 },
                         colors: confettiColors
                     });
-                    showGalleryAndGuestbook();
+                    showGuestbook();
                 }
             }, 1000);
         }
