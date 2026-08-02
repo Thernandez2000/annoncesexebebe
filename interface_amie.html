@@ -52,6 +52,33 @@
             box-sizing: border-box;
         }
 
+        /* Conteneur pour l'input mot de passe + icône œil */
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .password-wrapper input {
+            width: 100%;
+            margin: 0;
+            padding-right: 45px;
+            box-sizing: border-box;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0;
+            width: auto;
+            margin: 0;
+            color: #8c7355;
+        }
+
         /* Style pour les champs désactivés / grisés */
         input[type="number"]:disabled {
             background-color: #f0f0f0;
@@ -320,8 +347,17 @@
     <div id="loginScreen" class="container">
         <h2>🔒 Espace Réservé</h2>
         <p>Entre le mot de passe secret :</p>
-        <input type="password" id="passwordInput" placeholder="Mot de passe">
-        <br>
+        
+        <div class="password-wrapper">
+            <input type="password" id="passwordInput" placeholder="Mot de passe">
+            <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" title="Afficher / Masquer">👁️</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin: 10px 0; text-align: left;">
+            <input type="checkbox" id="rememberMeCheck" style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="rememberMeCheck" style="font-size: 0.85rem; cursor: pointer; color: #7a685e;">Se souvenir de la connexion</label>
+        </div>
+
         <button onclick="checkPassword()">Se connecter</button>
         <p id="errorMsg" style="color: red; font-size: 0.9rem; margin-top: 10px;"></p>
     </div>
@@ -442,27 +478,58 @@
         let activeAdminAudioBase64 = null;
         let activeRecordingMessageId = null;
 
+        // Vérifier au chargement si l'option "Se souvenir de moi" était active
+        window.addEventListener('DOMContentLoaded', () => {
+            const remembered = localStorage.getItem('adminConnected') === 'true';
+            if (remembered) {
+                unlockAdminUI();
+            }
+        });
+
+        // Fonction pour afficher/masquer le mot de passe (l'œil)
+        window.togglePasswordVisibility = function() {
+            const pwdInput = document.getElementById('passwordInput');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+            } else {
+                pwdInput.type = 'password';
+            }
+        };
+
         window.checkPassword = function() {
             const inputElement = document.getElementById('passwordInput');
             const errorElement = document.getElementById('errorMsg');
+            const rememberCheck = document.getElementById('rememberMeCheck');
             
             if (!inputElement || !errorElement) return;
 
             const saisie = inputElement.value;
             if (saisie === MOT_DE_PASSE_SECRET) {
                 errorElement.innerText = "";
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('adminInterface').classList.remove('hidden');
-                document.getElementById('adminGallerySection').classList.remove('hidden');
-                document.getElementById('adminModSection').classList.remove('hidden');
-                loadLiveStatus();
-                loadVisitorStats();
-                loadAdminMessages();
-                loadAdminGallery();
+                
+                // Gérer le "Se souvenir de moi"
+                if (rememberCheck && rememberCheck.checked) {
+                    localStorage.setItem('adminConnected', 'true');
+                } else {
+                    localStorage.removeItem('adminConnected');
+                }
+
+                unlockAdminUI();
             } else {
                 errorElement.innerText = "Mot de passe incorrect !";
             }
         };
+
+        function unlockAdminUI() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminInterface').classList.remove('hidden');
+            document.getElementById('adminGallerySection').classList.remove('hidden');
+            document.getElementById('adminModSection').classList.remove('hidden');
+            loadLiveStatus();
+            loadVisitorStats();
+            loadAdminMessages();
+            loadAdminGallery();
+        }
 
         // Gestion de l'état grisé / actif du champ durée du compte à rebours
         window.toggleCountdownInputState = function() {
@@ -491,7 +558,7 @@
                         r.checked = true;
                     }
                 }
-                toggleCountdownInputState(); // Appliquer l'état grisé selon la valeur chargée
+                toggleCountdownInputState();
             }, { onlyOnce: true });
 
             const annonceRef = ref(db, 'annonce');
