@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Espace Secret - Choix du Sexe</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Bibliothèque pour générer le PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Bibliothèque pour capturer en image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         body {
@@ -142,7 +142,7 @@
             margin: 5px 0;
         }
 
-        /* SECTION MODÉRATION LIVRE D'OR */
+        /* SECTION MODÉRATION LIVRE D'OR / GALERIE */
         .mod-section {
             background: #fff;
             padding: 20px;
@@ -280,12 +280,33 @@
             background-color: #c9302c;
         }
 
-        .btn-pdf {
+        .btn-img-export {
             background-color: #8c7355;
             margin-top: 15px;
         }
-        .btn-pdf:hover {
+        .btn-img-export:hover {
             background-color: #725c43;
+        }
+
+        /* STYLE GALERIE ADMIN */
+        .gallery-admin-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .gallery-admin-item {
+            background: #f9f6f0;
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+        }
+        .gallery-admin-item img {
+            width: 100%;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 6px;
         }
     </style>
 </head>
@@ -344,16 +365,47 @@
         <a href="index.html" style="font-size: 0.9rem; color: #888; text-decoration: none;">← Retourner à la carte</a>
     </div>
 
+    <!-- SECTION GESTION GALERIE PHOTOS -->
+    <div id="adminGallerySection" class="mod-section hidden">
+        <h3>📸 Gestion de la Galerie</h3>
+        <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Ajoute des photos et choisis si elles doivent être privées (floutées avec un cadenas).</p>
+        
+        <div class="input-group">
+            <label for="galleryImageInput">Sélectionner une photo :</label>
+            <input type="file" id="galleryImageInput" accept="image/*" style="width:100%; margin: 5px 0; font-size: 0.85rem;">
+            
+            <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+                <input type="checkbox" id="galleryPrivateCheck" style="width: 20px; height: 20px;">
+                <label for="galleryPrivateCheck" style="font-size: 0.85rem; cursor: pointer;">Mettre en privé (Flouté + Cadenas 🔒)</label>
+            </div>
+
+            <button onclick="uploadGalleryPhoto()" style="background-color: #d1a878; padding: 10px; font-size: 0.9rem; margin-top: 5px;">Ajouter à la galerie ✨</button>
+        </div>
+
+        <div id="adminGalleryList" class="gallery-admin-grid">
+            <!-- Liste des photos gérées -->
+        </div>
+    </div>
+
     <!-- SECTION ADMINISTRATION DU LIVRE D'OR -->
     <div id="adminModSection" class="mod-section hidden">
         <h3>📖 Modération du Livre d'or</h3>
         <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Répondez aux proches en texte ou en vocal, ajoutez des cœurs ou supprimez.</p>
         
-        <button class="btn-pdf" onclick="downloadBookPDF()">📥 Télécharger le Livre d'or en PDF</button>
+        <button class="btn-img-export" onclick="downloadBookAsImages()">📥 Télécharger le Livre d'or en Images</button>
 
         <div id="adminMessagesList" style="margin-top: 15px;">
             <p style="font-size: 0.85rem; color: #aaa; text-align: center;">Chargement des messages...</p>
         </div>
+    </div>
+
+    <!-- CONTENEUR CACHÉ POUR EXPORT IMAGE DU LIVRE D'OR -->
+    <div id="exportBookContainer" style="position: absolute; left: -9999px; top: 0; width: 600px; background: #fdfbf7; padding: 30px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #5a4a42;">
+        <div style="text-align: center; margin-bottom: 25px;">
+            <h1 style="color: #d1a878; margin: 0; font-size: 2rem;">📖 Livre d'or</h1>
+            <p style="color: #8c7355; font-size: 1.1rem; margin: 5px 0 0 0;">Les doux messages de nos proches</p>
+        </div>
+        <div id="exportBookContentList"></div>
     </div>
 
     <!-- IMPORT CONFIG -->
@@ -369,7 +421,6 @@
 
         const MOT_DE_PASSE_SECRET = "bebe2026"; 
 
-        // Gestion globale pour l'enregistrement admin
         let adminMediaRecorder;
         let adminAudioChunks = [];
         let activeAdminAudioBase64 = null;
@@ -386,10 +437,12 @@
                 errorElement.innerText = "";
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('adminInterface').classList.remove('hidden');
+                document.getElementById('adminGallerySection').classList.remove('hidden');
                 document.getElementById('adminModSection').classList.remove('hidden');
                 loadLiveStatus();
                 loadVisitorStats();
                 loadAdminMessages();
+                loadAdminGallery();
             } else {
                 errorElement.innerText = "Mot de passe incorrect !";
             }
@@ -416,15 +469,12 @@
 
         function loadVisitorStats() {
             const statsRef = ref(db, 'stats/visiteurs');
-            
-            // 1. Affichage en direct du nombre de visiteurs
             onValue(statsRef, (snapshot) => {
                 const count = snapshot.val() || 0;
                 const displayEl = document.getElementById('visitorCountDisplay');
                 if (displayEl) displayEl.innerText = count;
             });
 
-            // 2. Enregistrement de la présence active
             const connectedRef = ref(db, ".info/connected");
             const presenceRef = ref(db, 'stats/visiteurs_actifs');
 
@@ -468,7 +518,6 @@
 
         window.setChoice = function(sexe) {
             const annonceRef = ref(db, 'annonce');
-            
             let dataToSend = {};
             if (sexe === 'fille') {
                 dataToSend = {
@@ -495,41 +544,90 @@
             get(annonceRef).then((snapshot) => {
                 const existing = snapshot.val() || {};
                 const finalData = { ...existing, ...dataToSend };
-                
                 set(annonceRef, finalData).then(() => {
                     showNotification("Choix enregistré avec succès ! ✨");
                     confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
                     loadLiveStatus();
                 });
-            }).catch(() => {
-                showNotification("Erreur lors de l'enregistrement.", true);
             });
         }
 
         window.saveMotDoux = function() {
             const motDouxReel = document.getElementById('motDouxInput').value;
-            const annonceRef = ref(db, 'annonce');
-            
-            update(annonceRef, { ligneMotDoux: motDouxReel }).then(() => {
+            update(ref(db, 'annonce'), { ligneMotDoux: motDouxReel }).then(() => {
                 showNotification("Mot doux mis à jour ! 💌");
                 loadLiveStatus();
-            }).catch(() => {
-                showNotification("Erreur lors de la mise à jour.", true);
             });
         }
 
         window.saveCountdown = function() {
             const countdownVal = parseInt(document.getElementById('inputCountdown').value) || 3;
-            const annonceRef = ref(db, 'annonce');
-            
-            update(annonceRef, { countdownDuration: countdownVal }).then(() => {
+            update(ref(db, 'annonce'), { countdownDuration: countdownVal }).then(() => {
                 showNotification("Durée du compte à rebours mise à jour ! ⏱️");
                 loadLiveStatus();
-            }).catch(() => {
-                showNotification("Erreur lors de la mise à jour.", true);
             });
         }
 
+        // GESTION DE LA GALERIE PHOTOS ADMIN
+        window.uploadGalleryPhoto = function() {
+            const fileInput = document.getElementById('galleryImageInput');
+            const isPrivate = document.getElementById('galleryPrivateCheck').checked;
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Image = e.target.result;
+                    const galleryRef = ref(db, 'galerie');
+                    
+                    push(galleryRef, {
+                        image: base64Image,
+                        prive: isPrivate,
+                        timestamp: Date.now()
+                    }).then(() => {
+                        fileInput.value = '';
+                        document.getElementById('galleryPrivateCheck').checked = false;
+                        alert("Photo ajoutée à la galerie avec succès ! 📸");
+                    });
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                alert("Veuillez sélectionner une image.");
+            }
+        };
+
+        function loadAdminGallery() {
+            const galleryRef = ref(db, 'galerie');
+            onValue(galleryRef, (snapshot) => {
+                const listEl = document.getElementById('adminGalleryList');
+                listEl.innerHTML = '';
+                const data = snapshot.val();
+
+                if (data) {
+                    Object.entries(data).reverse().forEach(([id, item]) => {
+                        const div = document.createElement('div');
+                        div.className = 'gallery-admin-item';
+                        const badgePrivé = item.prive ? '<span style="color: #d9534f; font-size: 0.75rem;">🔒 Privé</span>' : '<span style="color: #5cb85c; font-size: 0.75rem;">🔓 Public</span>';
+                        
+                        div.innerHTML = `
+                            <img src="${item.image}" alt="Photo galerie">
+                            <div style="margin: 4px 0;">${badgePrivé}</div>
+                            <button onclick="deleteGalleryPhoto('${id}')" style="background-color: #d9534f; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; width: 100%;">Supprimer</button>
+                        `;
+                        listEl.appendChild(div);
+                    });
+                } else {
+                    listEl.innerHTML = '<p style="font-size: 0.8rem; color: #aaa; grid-column: span 2; text-align: center;">Aucune photo dans la galerie.</p>';
+                }
+            });
+        }
+
+        window.deleteGalleryPhoto = function(id) {
+            if (confirm("Supprimer cette photo de la galerie ?")) {
+                remove(ref(db, `galerie/${id}`));
+            }
+        };
+
+        // GESTION DU LIVRE D'OR
         function loadAdminMessages() {
             const messagesRef = query(ref(db, 'livre_or'), limitToLast(100));
             onValue(messagesRef, (snapshot) => {
@@ -538,14 +636,11 @@
                 
                 const data = snapshot.val();
                 if (data) {
-                    const messagesEntries = Object.entries(data).reverse();
-                    messagesEntries.forEach(([id, item]) => {
+                    Object.entries(data).reverse().forEach(([id, item]) => {
                         const div = document.createElement('div');
                         div.className = 'mod-message-item';
-                        
                         const hasHeart = item.coeur ? true : false;
                         const heartIcon = hasHeart ? '❤️' : '🤍';
-                        
                         const audioDisplay = item.audio ? `<audio controls src="${item.audio}"></audio>` : '';
                         
                         let reponseHtml = '';
@@ -568,7 +663,6 @@
                                 ${audioDisplay}
                                 ${reponseHtml}
                                 
-                                <!-- ZONE DE RÉPONSE DÉPLIABLE -->
                                 <div id="replyContainer_${id}" class="reply-box-container">
                                     <input type="text" id="replyText_${id}" class="reply-input" placeholder="Écris ta réponse textuelle..." value="${item.reponse || ''}">
                                     <div class="admin-audio-row">
@@ -594,8 +688,7 @@
         }
 
         window.toggleReplyBox = function(messageId) {
-            const box = document.getElementById('replyContainer_' + messageId);
-            box.classList.toggle('active');
+            document.getElementById('replyContainer_' + messageId).classList.toggle('active');
         };
 
         window.toggleAdminRecording = async function(messageId) {
@@ -610,10 +703,7 @@
                     activeRecordingMessageId = messageId;
                     adminMediaRecorder = new MediaRecorder(stream);
                     
-                    adminMediaRecorder.ondataavailable = event => {
-                        adminAudioChunks.push(event.data);
-                    };
-
+                    adminMediaRecorder.ondataavailable = event => adminAudioChunks.push(event.data);
                     adminMediaRecorder.onstop = () => {
                         const audioBlob = new Blob(adminAudioChunks, { type: 'audio/webm' });
                         const reader = new FileReader();
@@ -626,7 +716,6 @@
                             }
                         };
                     };
-
                     adminMediaRecorder.start();
                     micBtn.innerText = "🛑 Stop";
                     micBtn.classList.add('recording');
@@ -653,7 +742,6 @@
         window.saveReply = function(messageId) {
             const textReply = document.getElementById(`replyText_${messageId}`).value.trim();
             const messageRef = ref(db, `livre_or/${messageId}`);
-            
             const updateData = {};
             if (textReply) updateData.reponse = textReply;
             if (activeRecordingMessageId === messageId && activeAdminAudioBase64) {
@@ -664,75 +752,61 @@
                 alert("Réponse enregistrée avec succès ! ✨");
                 activeAdminAudioBase64 = null;
                 activeRecordingMessageId = null;
-            }).catch(() => {
-                alert("Erreur lors de l'enregistrement de la réponse.");
             });
         };
 
         window.toggleHeart = function(messageId, currentHeartState) {
-            const messageRef = ref(db, `livre_or/${messageId}`);
-            update(messageRef, { coeur: !currentHeartState });
+            update(ref(db, `livre_or/${messageId}`), { coeur: !currentHeartState });
         };
 
         window.deleteAdminMessage = function(messageId) {
             if (confirm("Voulez-vous vraiment supprimer ce message ?")) {
-                const messageRef = ref(db, `livre_or/${messageId}`);
-                remove(messageRef);
+                remove(ref(db, `livre_or/${messageId}`));
             }
         };
 
-        window.downloadBookPDF = function() {
+        // EXPORT DU LIVRE D'OR EN IMAGE AVEC HTML2CANVAS
+        window.downloadBookAsImages = function() {
             const messagesRefOnce = query(ref(db, 'livre_or'), limitToLast(200));
-            get(messagesRefOnce).then((snapshot) => {
+            get(messagesRefOnce).then(async (snapshot) => {
                 const data = snapshot.val();
                 if (!data) {
                     alert("Aucun message à exporter.");
                     return;
                 }
 
-                const exportDiv = document.createElement('div');
-                exportDiv.className = 'book-export-wrapper';
-                
-                let htmlContent = `
-                    <h1 class="book-page-title">📖 Livre d'or — Annonce Bébé</h1>
-                    <div class="book-page-subtitle">Tous les doux messages des proches</div>
-                    <hr style="border: 0; border-top: 1px solid #d1a878; margin-bottom: 20px;">
-                `;
+                const contentList = document.getElementById('exportBookContentList');
+                contentList.innerHTML = '';
 
-                const entries = Object.entries(data);
-                entries.forEach(([id, item]) => {
+                Object.entries(data).forEach(([id, item]) => {
                     const heart = item.coeur ? ' ❤️' : '';
-                    const msg = escapeHtml(item.message || '');
-                    const name = escapeHtml(item.name || 'Anonyme');
+                    const card = document.createElement('div');
+                    card.style.cssText = "background: white; padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e8dfd8;";
                     
                     let repBlock = '';
                     if (item.reponse) {
-                        repBlock = `<p style="margin-top: 6px; font-style: italic; color: #8c7355;"><strong>Réponse des parents :</strong> ${escapeHtml(item.reponse)}</p>`;
+                        repBlock = `<p style="margin-top: 6px; font-style: italic; color: #8c7355; font-size: 0.9rem;"><strong>Réponse :</strong> ${escapeHtml(item.reponse)}</p>`;
                     }
 
-                    htmlContent += `
-                        <div class="book-message-card">
-                            <strong>${name}${heart}</strong>
-                            <p>${msg}</p>
-                            ${repBlock}
-                        </div>
+                    card.innerHTML = `
+                        <strong style="color: #5a4a42; font-size: 1rem;">${escapeHtml(item.name)}${heart}</strong>
+                        <p style="margin: 6px 0 0 0; color: #7a685e; font-size: 0.95rem;">${escapeHtml(item.message)}</p>
+                        ${repBlock}
                     `;
+                    contentList.appendChild(card);
                 });
 
-                exportDiv.innerHTML = htmlContent;
-                document.body.appendChild(exportDiv);
-
-                const opt = {
-                    margin:       10,
-                    filename:     'Livre_d_or_Bebe.pdf',
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2 },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
-                html2pdf().from(exportDiv).set(opt).save().then(() => {
-                    document.body.removeChild(exportDiv);
-                });
+                const exportContainer = document.getElementById('exportBookContainer');
+                
+                try {
+                    const canvas = await html2canvas(exportContainer, { scale: 2, useCORS: true });
+                    const link = document.createElement('a');
+                    link.download = 'Livre_d_or_Bebe.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch (err) {
+                    alert("Erreur lors de la génération de l'image du livre d'or.");
+                }
             });
         };
 
