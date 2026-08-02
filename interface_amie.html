@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Espace Secret - Choix du Sexe</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Bibliothèque pour générer le PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         body {
@@ -174,6 +176,62 @@
         .mod-delete-btn:hover {
             background-color: #c9302c;
         }
+
+        /* DESIGN DU LIVRE POUR LE PDF (Masqué à l'écran, utilisé uniquement pour l'export) */
+        .book-export-wrapper {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            background-color: #fdfbf7;
+            background-image: radial-gradient(#e8dfd8 0.75px, transparent 0.75px);
+            background-size: 15px 15px;
+            border: 5px solid #d1a878;
+            border-radius: 15px;
+            padding: 40px;
+            font-family: 'Georgia', serif;
+            color: #5a4a42;
+            width: 700px;
+            box-sizing: border-box;
+        }
+        .book-page-title {
+            text-align: center;
+            color: #8c7355;
+            font-size: 2rem;
+            margin-bottom: 5px;
+            font-weight: normal;
+        }
+        .book-page-subtitle {
+            text-align: center;
+            font-size: 1rem;
+            color: #9c887d;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .book-message-card {
+            background: #ffffff;
+            border-left: 4px solid #d1a878;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .book-message-card strong {
+            color: #5a4a42;
+            font-size: 1.1rem;
+        }
+        .book-message-card p {
+            margin: 8px 0 0 0;
+            color: #7a685e;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+        .btn-pdf {
+            background-color: #8c7355;
+            margin-top: 15px;
+        }
+        .btn-pdf:hover {
+            background-color: #725c43;
+        }
     </style>
 </head>
 <body>
@@ -219,7 +277,9 @@
         <h3>📖 Modération du Livre d'or</h3>
         <p style="font-size: 0.85rem; color: #7a685e; text-align: center;">Retrouvez ici tous les messages et supprimez ceux si besoin.</p>
         
-        <div id="adminMessagesList">
+        <button class="btn-pdf" onclick="downloadBookPDF()">📥 Télécharger le Livre d'or en PDF</button>
+
+        <div id="adminMessagesList" style="margin-top: 15px;">
             <p style="font-size: 0.85rem; color: #aaa; text-align: center;">Chargement des messages...</p>
         </div>
     </div>
@@ -352,6 +412,51 @@
                     alert("Erreur lors de la suppression.");
                 });
             }
+        };
+
+        window.downloadBookPDF = function() {
+            const messagesRef = query(ref(db, 'livre_or'), limitToLast(100));
+            onValue(messagesRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    alert("Aucun message à exporter pour le moment !");
+                    return;
+                }
+
+                const exportContainer = document.createElement('div');
+                exportContainer.className = 'book-export-wrapper';
+                
+                let htmlContent = `
+                    <h1 class="book-page-title">📖 Livre d'Or de Bébé</h1>
+                    <div class="book-page-subtitle">Les doux mots de nos proches et de notre famille</div>
+                    <hr style="border: 0; border-top: 1px solid #d1a878; margin-bottom: 30px;">
+                `;
+
+                const messagesArray = Object.values(data).reverse();
+                messagesArray.forEach((item) => {
+                    htmlContent += `
+                        <div class="book-message-card">
+                            <strong>${escapeHtml(item.name)}</strong>
+                            <p>${escapeHtml(item.message)}</p>
+                        </div>
+                    `;
+                });
+
+                exportContainer.innerHTML = htmlContent;
+                document.body.appendChild(exportContainer);
+
+                const options = {
+                    margin:       10,
+                    filename:     'Livre_d_or_bebe.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().from(exportContainer).set(options).save().then(() => {
+                    document.body.removeChild(exportContainer);
+                });
+            }, { onlyOnce: true });
         };
 
         function escapeHtml(text) {
