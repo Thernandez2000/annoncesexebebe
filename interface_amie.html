@@ -126,6 +126,22 @@
             color: #7a685e;
         }
 
+        /* SECTION STATS VISITEURS */
+        .stats-card {
+            background: #fdfbf7;
+            border: 1px solid #e8dfd8;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .stats-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #8c7355;
+            margin: 5px 0;
+        }
+
         /* SECTION MODÉRATION LIVRE D'OR */
         .mod-section {
             background: #fff;
@@ -313,6 +329,16 @@
             <button onclick="saveCountdown()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer le chrono ⏱️</button>
         </div>
 
+        <!-- ONGLET / SECTION SUIVI DES VISITEURS & RÉVÉLATION DIRECTE -->
+        <div class="stats-card">
+            <label style="font-size: 0.85rem; font-weight: 600; color: #7a685e;">👥 Visiteurs connectés / Total :</label>
+            <div class="stats-number" id="visitorCountDisplay">...</div>
+            <p style="font-size: 0.75rem; color: #999; margin: 0 0 10px 0;">Comptage en temps réel via Firebase</p>
+            
+            <button onclick="triggerGlobalReveal()" style="background-color: #e67e22; font-size: 0.95rem; font-weight: bold; padding: 12px; margin-top: 5px;">🚀 Déclencher le Reveal Direct</button>
+            <p style="font-size: 0.7rem; color: #888; margin-top: 6px;">Lance instantanément le compte à rebours chez tous les visiteurs connectés.</p>
+        </div>
+
         <p id="status"></p>
         <br>
         <a href="index.html" style="font-size: 0.9rem; color: #888; text-decoration: none;">← Retourner à la carte</a>
@@ -356,6 +382,7 @@
                 document.getElementById('adminInterface').classList.remove('hidden');
                 document.getElementById('adminModSection').classList.remove('hidden');
                 loadLiveStatus();
+                loadVisitorStats();
                 loadAdminMessages();
             } else {
                 document.getElementById('errorMsg').innerText = "Mot de passe incorrect !";
@@ -380,6 +407,27 @@
                 }
             }, { onlyOnce: true });
         }
+
+        function loadVisitorStats() {
+            // Écoute du nombre de connexions / visiteurs connectés (si géré via presence ou compteur)
+            const statsRef = ref(db, 'stats/visiteurs');
+            onValue(statsRef, (snapshot) => {
+                const count = snapshot.val() || 0;
+                document.getElementById('visitorCountDisplay').innerText = count;
+            });
+        }
+
+        window.triggerGlobalReveal = function() {
+            const controlRef = ref(db, 'controle');
+            set(controlRef, { 
+                action: 'reveal', 
+                timestamp: Date.now() 
+            }).then(() => {
+                showNotification("Reveal direct déclenché avec succès pour tous ! 🚀");
+            }).catch(() => {
+                showNotification("Erreur lors du déclenchement.", true);
+            });
+        };
 
         function showNotification(message, isError = false) {
             const statusEl = document.getElementById('status');
@@ -417,7 +465,6 @@
             const currentCountdown = document.getElementById('inputCountdown').value;
             if (currentCountdown) dataToSend.countdownDuration = parseInt(currentCountdown);
 
-            // On récupère aussi les couleurs et le reste si déjà existant
             get(annonceRef).then((snapshot) => {
                 const existing = snapshot.val() || {};
                 const finalData = { ...existing, ...dataToSend };
