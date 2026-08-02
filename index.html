@@ -452,7 +452,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue, push, update, increment, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app, databaseURL);
@@ -462,6 +462,23 @@
         const restartBtn = document.getElementById('restartBtn');
         let confettiColors = ['#ffc0cb', '#ff69b4', '#ffffff', '#d1a878'];
         let countdownDuration = 3; // Par défaut à 3 secondes
+
+        // Gestion du compteur de visites unique (via localStorage pour ne compter qu'une fois par appareil)
+        const statsRef = ref(db, 'stats');
+        if (!localStorage.getItem('has_visited')) {
+            update(statsRef, { visites: increment(1) });
+            localStorage.setItem('has_visited', 'true');
+        }
+
+        // Écouter en temps réel le mode "Révélation en direct" déclenché depuis l'admin
+        const controlRef = ref(db, 'controle');
+        onValue(controlRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.forceReveal && !revealed && !isCountingDown) {
+                isCountingDown = true;
+                startCountdownAndReveal();
+            }
+        });
 
         // VARIABLES POUR L'ENREGISTREMENT AUDIO
         let mediaRecorder;
@@ -575,7 +592,6 @@
 
                 if (data.confettiColors) confettiColors = data.confettiColors;
                 
-                // Récupération de la durée du compte à rebours configurée par l'amie (défaut: 3)
                 if (data.countdownDuration !== undefined) {
                     countdownDuration = parseInt(data.countdownDuration) || 3;
                 }
@@ -704,6 +720,8 @@
             
             if (percentage > 45 && !revealed && !isCountingDown) {
                 isCountingDown = true;
+                // Incrémenter le compteur de grattages dans Firebase
+                update(statsRef, { grattages: increment(1) });
                 startCountdownAndReveal();
             }
         }
