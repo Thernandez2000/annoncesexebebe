@@ -163,7 +163,6 @@
             text-align: center;
         }
         
-        /* CARTE DE MESSAGE MODÉRATION PROPRE */
         .mod-message-item {
             background: #f9f6f0;
             padding: 12px;
@@ -194,7 +193,6 @@
             margin-top: 6px;
         }
 
-        /* ZONE DE RÉPONSE INTÉGRÉE */
         .reply-box-container {
             background: #fff;
             padding: 10px;
@@ -242,7 +240,6 @@
             100% { opacity: 1; }
         }
 
-        /* BARRE D'ACTIONS PROPRE */
         .mod-actions-bar {
             display: flex;
             align-items: center;
@@ -288,7 +285,6 @@
             background-color: #725c43;
         }
 
-        /* STYLE GALERIE ADMIN */
         .gallery-admin-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -343,11 +339,23 @@
             <button onclick="saveMotDoux()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer le mot doux ✨</button>
         </div>
 
-        <!-- Réglage de la durée du compte à rebours -->
-        <div class="input-group">
-            <label for="inputCountdown">⏱️ Durée du compte à rebours (en secondes) :</label>
-            <input type="number" id="inputCountdown" min="1" max="10" value="3">
-            <button onclick="saveCountdown()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer le chrono ⏱️</button>
+        <!-- RÉGLAGE DU COMPTE À REBOURS (OUI / NON + DURÉE) -->
+        <div class="input-group" style="background: #fdfbf7; border: 1px solid #e8dfd8; padding: 12px; border-radius: 10px;">
+            <label style="display: block; margin-bottom: 8px;">⏳ Activer le compte à rebours au grattage ?</label>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                <label style="cursor: pointer; font-weight: normal;">
+                    <input type="radio" name="showCountdownRadio" value="true" checked> Oui
+                </label>
+                <label style="cursor: pointer; font-weight: normal;">
+                    <input type="radio" name="showCountdownRadio" value="false"> Non (Révélation immédiate)
+                </label>
+            </div>
+
+            <label for="inputCountdown">Durée (en secondes) :</label>
+            <input type="number" id="inputCountdown" min="1" max="10" value="3" style="margin-top: 5px;">
+            
+            <button onclick="saveCountdownSettings()" style="background-color: #8c7355; padding: 8px; font-size: 0.9rem; margin-top: 5px;">Enregistrer les options du chrono ⏱️</button>
         </div>
 
         <!-- ONGLET / SECTION SUIVI DES VISITEURS & RÉVÉLATION DIRECTE -->
@@ -449,6 +457,21 @@
         };
 
         function loadLiveStatus() {
+            // Charger les infos de l'annonce et du compte à rebours (dans le nœud controle)
+            const controlRef = ref(db, 'controle');
+            onValue(controlRef, (snapshot) => {
+                const controlData = snapshot.val() || {};
+                const showCd = controlData.showCountdown !== false; // true par défaut
+                
+                // Mettre à jour les radios Oui/Non
+                const radios = document.getElementsByName('showCountdownRadio');
+                for (let r of radios) {
+                    if (r.value === String(showCd)) {
+                        r.checked = true;
+                    }
+                }
+            }, { onlyOnce: true });
+
             const annonceRef = ref(db, 'annonce');
             onValue(annonceRef, (snapshot) => {
                 const data = snapshot.val();
@@ -496,7 +519,7 @@
 
         window.triggerGlobalReveal = function() {
             const controlRef = ref(db, 'controle');
-            set(controlRef, { 
+            update(controlRef, { 
                 action: 'reveal', 
                 timestamp: Date.now() 
             }).then(() => {
@@ -538,9 +561,6 @@
             const currentMotDoux = document.getElementById('motDouxInput').value;
             if (currentMotDoux) dataToSend.ligneMotDoux = currentMotDoux;
 
-            const currentCountdown = document.getElementById('inputCountdown').value;
-            if (currentCountdown) dataToSend.countdownDuration = parseInt(currentCountdown);
-
             get(annonceRef).then((snapshot) => {
                 const existing = snapshot.val() || {};
                 const finalData = { ...existing, ...dataToSend };
@@ -560,11 +580,22 @@
             });
         }
 
-        window.saveCountdown = function() {
+        window.saveCountdownSettings = function() {
+            const showCountdownVal = document.querySelector('input[name="showCountdownRadio"]:checked').value === 'true';
             const countdownVal = parseInt(document.getElementById('inputCountdown').value) || 3;
-            update(ref(db, 'annonce'), { countdownDuration: countdownVal }).then(() => {
-                showNotification("Durée du compte à rebours mise à jour ! ⏱️");
-                loadLiveStatus();
+
+            // Sauvegarder dans le nœud "controle" (écouté en temps réel par index.html)
+            const controlRef = ref(db, 'controle');
+            update(controlRef, { 
+                showCountdown: showCountdownVal 
+            });
+
+            // Sauvegarder aussi la durée dans "annonce"
+            const annonceRef = ref(db, 'annonce');
+            update(annonceRef, { 
+                countdownDuration: countdownVal 
+            }).then(() => {
+                showNotification("Options du compte à rebours mises à jour ! ⏱️");
             });
         }
 
@@ -765,7 +796,6 @@
             }
         };
 
-        // EXPORT DU LIVRE D'OR EN IMAGE AVEC HTML2CANVAS
         window.downloadBookAsImages = function() {
             const messagesRefOnce = query(ref(db, 'livre_or'), limitToLast(200));
             get(messagesRefOnce).then(async (snapshot) => {
